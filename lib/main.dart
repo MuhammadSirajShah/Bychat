@@ -1,24 +1,42 @@
-import 'package:bychat/Screens/home_screen/home_screen.dart';
+
 import 'package:flutter/material.dart';
+import 'Screens/home_screen/home_screen.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const ByChatApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class ByChatApp extends StatelessWidget {
+  const ByChatApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
+    const primaryColor = Color(0xFF6558F5);
 
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'ByChat',
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: primaryColor,
+          brightness: Brightness.light,
+        ),
+        scaffoldBackgroundColor: const Color(0xFFF7F7FC),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFFF7F7FC),
+          foregroundColor: Color(0xFF202033),
+        ),
       ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: primaryColor,
+          brightness: Brightness.dark,
+        ),
+      ),
+      themeMode: ThemeMode.light,
       home: const HomeScreen(),
     );
   }
 }
-
