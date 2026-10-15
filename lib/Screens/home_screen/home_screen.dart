@@ -1,7 +1,9 @@
 
 import 'package:flutter/material.dart';
 
+import '../Call Screens/calls_screen.dart';
 import '../Chat Screen/chat_screen.dart';
+import '../Profile Screen/profile_screen.dart';
 import '../Status Screen/status_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -61,7 +63,6 @@ class _HomeScreenState extends State<HomeScreen> {
     'ByChat',
     'Status',
     'Calls',
-    'Profile',
     'Settings',
   ];
 
@@ -87,6 +88,18 @@ class _HomeScreenState extends State<HomeScreen> {
               },
               icon: const Icon(Icons.search),
               tooltip: 'Search chats',
+            ),
+            IconButton(
+              tooltip: 'Profile',
+              icon: const Icon(Icons.account_circle_outlined),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ProfileScreen(),
+                  ),
+                );
+              },
             ),
             PopupMenuButton<String>(
               onSelected: (value) {
@@ -116,6 +129,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ? _buildChatsList()
           : _selectedIndex == 1
           ? const StatusScreen()
+          : _selectedIndex == 2
+          ? const CallsScreen()
           : Center(
         child: Text(
           '${_titles[_selectedIndex]} screen will be connected next.',
@@ -160,11 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
             selectedIcon: Icon(Icons.call),
             label: 'Calls',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
+
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),
             selectedIcon: Icon(Icons.settings),
