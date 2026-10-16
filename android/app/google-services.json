@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "707706775847",
+    "project_id": "bychat-d413e",
+    "storage_bucket": "bychat-d413e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:707706775847:android:c2b0accad6950eab3ee102",
+        "android_client_info": {
+          "package_name": "com.example.bychat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDCLrwVzyl0rZolwQPZ3rBrEho78W1xkzs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

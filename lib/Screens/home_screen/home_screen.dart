@@ -1,4 +1,5 @@
 
+import 'package:bychat/Screens/Setting%20Screen/setting_screen.dart';
 import 'package:flutter/material.dart';
 
 import '../Call Screens/calls_screen.dart';
@@ -131,13 +132,15 @@ class _HomeScreenState extends State<HomeScreen> {
           ? const StatusScreen()
           : _selectedIndex == 2
           ? const CallsScreen()
-          : Center(
-        child: Text(
-          '${_titles[_selectedIndex]} screen will be connected next.',
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 16),
-        ),
-      ),
+          : const SettingScreen(),
+
+      // Center(
+      //   child: Text(
+      //     '${_titles[_selectedIndex]} screen will be connected next.',
+      //     textAlign: TextAlign.center,
+      //     style: const TextStyle(fontSize: 16),
+      //   ),
+      // ),
       floatingActionButton: _selectedIndex == 0
           ? FloatingActionButton(
         onPressed: () {
@@ -175,7 +178,6 @@ class _HomeScreenState extends State<HomeScreen> {
             selectedIcon: Icon(Icons.call),
             label: 'Calls',
           ),
-
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),
             selectedIcon: Icon(Icons.settings),
