@@ -1,6 +1,8 @@
 
 import 'package:flutter/material.dart';
 
+import '../Auth Screen/phone_login_screen.dart';
+
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
 
@@ -168,10 +170,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
   void _continue() {
-    _showInformation(
-      'Welcome to ByChat',
-      'You are ready to begin setting up ByChat. '
-          'The next step will introduce phone number verification.',
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const PhoneLoginScreen(),
+      ),
     );
   }
 
