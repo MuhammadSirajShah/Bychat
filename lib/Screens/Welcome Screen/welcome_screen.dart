@@ -247,7 +247,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             width: 190,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: primaryColor.withValues(alpha: 0.12),
+                              color: Colors.teal.withValues(alpha: 0.20),
                             ),
                             child: Stack(
                               alignment: Alignment.center,
@@ -256,7 +256,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                   height: 132,
                                   width: 132,
                                   decoration: const BoxDecoration(
-                                    color: primaryColor,
+                                    color: Colors.teal,
                                     shape: BoxShape.circle,
                                   ),
                                 ),
@@ -388,7 +388,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             child: FilledButton(
                               onPressed: _continue,
                               style: FilledButton.styleFrom(
-                                backgroundColor: primaryColor,
+                                backgroundColor: Colors.teal,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(18),

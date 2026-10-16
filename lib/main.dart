@@ -1,8 +1,6 @@
-
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-
-import 'package:bychat/Screens/home_screen/home_screen.dart';
+import 'Screens/Welcome Screen/welcome_screen.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -59,7 +57,7 @@ class ByChatApp extends StatelessWidget {
               brightness: Brightness.dark,
             ),
           ),
-          home: const HomeScreen(),
+          home: const WelcomeScreen(),
         );
       },
     );
