@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 const Color _backgroundColor = Color(0xFF171C20);
 const Color _surfaceColor = Color(0xFF222A2E);
 const Color _blueColor = Color(0xFF579BFF);
-const Color _orangeColor = Color(0xFFFFA34D);
+const Color _tealColor = Color(0xFF009688);
 const Color _textColor = Color(0xFFF1F3F5);
 const Color _mutedColor = Color(0xFF9AA4AA);
 
@@ -155,7 +155,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
                         borderSide: const BorderSide(
-                          color: _orangeColor,
+                          color: _tealColor,
                           width: 2,
                         ),
                       ),
@@ -167,7 +167,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     child: FilledButton(
                       onPressed: _isLoading ? null : _verifyOtp,
                       style: FilledButton.styleFrom(
-                        backgroundColor: _orangeColor,
+                        backgroundColor: _tealColor,
                         foregroundColor: const Color(0xFF182027),
                       ),
                       child: _isLoading
