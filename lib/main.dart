@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'Screens/Welcome Screen/welcome_screen.dart';
+import 'Screens/Auth Screen/auth_gate.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -57,7 +57,7 @@ class ByChatApp extends StatelessWidget {
               brightness: Brightness.dark,
             ),
           ),
-          home: const WelcomeScreen(),
+            home: const AuthGate(),
         );
       },
     );

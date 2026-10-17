@@ -119,55 +119,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  void _showMoreMenu() {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: const Color(0xFF20212D),
-      showDragHandle: true,
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.help_outline, color: Colors.white),
-                title: const Text(
-                  'Help',
-                  style: TextStyle(color: Colors.white),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showInformation(
-                    'Help',
-                    'Welcome to ByChat Help. Help articles and support '
-                        'options will be available here.',
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.accessibility_new,
-                  color: Colors.white,
-                ),
-                title: const Text(
-                  'Accessibility',
-                  style: TextStyle(color: Colors.white),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showInformation(
-                    'Accessibility',
-                    'ByChat aims to make messaging accessible and easy to use.',
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   void _continue() {
     Navigator.push(
