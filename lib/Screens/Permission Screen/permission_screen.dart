@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../home_screen/home_screen.dart';
 
@@ -37,12 +38,17 @@ class _PermissionScreenState extends State<PermissionScreen> {
     setState(() => _isLoading = false);
     _openHomeScreen();
   }
-
-  void _skipPermissions() {
-    _openHomeScreen();
+  Future<void> _skipPermissions() async {
+    await _openHomeScreen();
   }
 
-  void _openHomeScreen() {
+  Future<void> _openHomeScreen() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setBool('permission_screen_completed', true);
+
+    if (!mounted) return;
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => const HomeScreen(),
@@ -200,7 +206,7 @@ class _PermissionScreenState extends State<PermissionScreen> {
                     height: 24,
                     child: CircularProgressIndicator(
                       color: Colors.white,
-                      strokeWidth: 2.5,
+                      //strokeWidth: 2.5,
                     ),
                   )
                       : const Text(
