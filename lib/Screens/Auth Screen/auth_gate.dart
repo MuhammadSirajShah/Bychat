@@ -2,9 +2,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../Permission Screen/permission_screen.dart';
 import '../Welcome Screen/welcome_screen.dart';
-import '../home_screen/home_screen.dart';
-
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -19,14 +18,14 @@ class AuthGate extends StatelessWidget {
             backgroundColor: Color(0xFF171C20),
             body: Center(
               child: CircularProgressIndicator(
-                color: Color(0xFFFFA34D),
+                color: Color(0xFF009688),
               ),
             ),
           );
         }
 
         if (snapshot.hasData) {
-          return const HomeScreen();
+          return const PermissionScreen();
         }
 
         return const WelcomeScreen();
