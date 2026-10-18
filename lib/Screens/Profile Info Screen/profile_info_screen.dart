@@ -25,7 +25,7 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
   final ImagePicker _imagePicker = ImagePicker();
 
   XFile? _profileImage;
-  String _selectedEmoji = '😊';
+  String _selectedEmoji = '';
   bool _isSaving = false;
   bool _showEmojiPicker = false;
 
@@ -62,6 +62,7 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
   Future<void> _saveAndContinue() async {
     final name = _nameController.text.trim();
 
+
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter your name.')),
@@ -76,7 +77,7 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
 
       await prefs.setString(
         'bychat_profile_name',
-        '$name $_selectedEmoji',
+        name,
       );
 
       if (_profileImage != null) {
@@ -201,6 +202,7 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                       style: TextStyle(color: _muted, fontSize: 14),
                     ),
                     const SizedBox(height: 42),
+
                     const Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
@@ -209,15 +211,21 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Container(
-                      decoration: const BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(color: _teal, width: 1.5),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
+
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Name TextField: emojis iske andar nahi honge
+                        Expanded(
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: _teal,
+                                  width: 1.5,
+                                ),
+                              ),
+                            ),
                             child: TextField(
                               controller: _nameController,
                               onTap: () {
@@ -239,18 +247,46 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                               ),
                             ),
                           ),
-                          IconButton(
-                            onPressed: _toggleEmojiPicker,
-                            tooltip: 'Choose emoji',
-                            icon: Text(
-                              _selectedEmoji,
-                              style: const TextStyle(fontSize: 26),
+                        ),
+
+                        const SizedBox(width: 10),
+
+                        // Emoji button: TextField se bilkul alag
+                        Material(
+                          color: const Color(0xFF222A2E),
+                          borderRadius: BorderRadius.circular(12),
+                          child: InkWell(
+                            onTap: _toggleEmojiPicker,
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.emoji_emotions_outlined,
+                                    color: _teal,
+                                    size: 24,
+                                  ),
+                                  SizedBox(width: 4),
+                                  Icon(
+                                    Icons.add,
+                                    color: _teal,
+                                    size: 22,
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
+
                     const SizedBox(height: 12),
+
                     const Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
@@ -303,12 +339,25 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
               SizedBox(
                 height: 280,
                 child: EmojiPicker(
+
                   onEmojiSelected: (category, emoji) {
+                    final currentText = _nameController.text.trimRight();
+                    final newText = currentText.isEmpty
+                        ? emoji.emoji
+                        : '$currentText ${emoji.emoji}';
+
                     setState(() {
-                      _selectedEmoji = emoji.emoji;
-                      _showEmojiPicker = false;
+                      _nameController.value = TextEditingValue(
+                        text: newText,
+                        selection: TextSelection.collapsed(
+                          offset: newText.length,
+                        ),
+                      );
                     });
                   },
+
+
+
                   config: Config(
                     height: 280,
                     checkPlatformCompatibility: true,
