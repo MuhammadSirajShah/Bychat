@@ -6,6 +6,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'About Screen/about_screen.dart';
+import 'Name Screen/name_screen.dart';
+
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -31,33 +35,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final prefs = await SharedPreferences.getInstance();
       final user = FirebaseAuth.instance.currentUser;
 
-      String name = prefs.getString('bychat_profile_name') ?? 'Your Name';
-      String about = prefs.getString('bychat_profile_about') ??
+      var name = prefs.getString('bychat_profile_name') ?? 'Your Name';
+      var about = prefs.getString('bychat_profile_about') ??
           'Hey there! I am using ByChat.';
-      String phoneNumber = user?.phoneNumber ??
+      var phone = user?.phoneNumber ??
           prefs.getString('bychat_profile_phone') ??
           prefs.getString('bychat_phone_number') ??
           'Not added yet';
 
-      // Load the cloud profile when the user is signed in.
       if (user != null) {
-        final document = await FirebaseFirestore.instance
+        final doc = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
             .get();
 
-        final data = document.data();
+        final data = doc.data();
 
-        if (document.exists && data != null) {
-          name = (data['name'] as String?) ?? name;
-          about = (data['about'] as String?) ?? about;
-          phoneNumber =
-              (data['phoneNumber'] as String?) ?? phoneNumber;
+        if (data != null) {
+          name = data['name'] as String? ?? name;
+          about = data['about'] as String? ?? about;
+          phone = data['phoneNumber'] as String? ?? phone;
 
-          // Keep local text fields in sync with the cloud.
           await prefs.setString('bychat_profile_name', name);
           await prefs.setString('bychat_profile_about', about);
-          await prefs.setString('bychat_profile_phone', phoneNumber);
+          await prefs.setString('bychat_profile_phone', phone);
         }
       }
 
@@ -66,115 +67,80 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _name = name;
         _about = about;
-        _phoneNumber = phoneNumber;
+        _phoneNumber = phone;
         _profileImagePath =
             prefs.getString('bychat_profile_image_path');
         _isLoading = false;
       });
-    } catch (error) {
+    } catch (e) {
       if (!mounted) return;
 
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Could not load the cloud profile. Check your connection.',
-          ),
+          content: Text('Could not load your profile. Check your connection.'),
         ),
       );
     }
   }
 
-  Future<void> _editField(String title, String currentValue) async {
-    final controller = TextEditingController(text: currentValue);
-
-    final result = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text('Edit $title'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            maxLength: title == 'About' ? 139 : 40,
-            maxLines: title == 'About' ? 3 : 1,
-            decoration: InputDecoration(
-              hintText: 'Enter $title',
-              border: const OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, controller.text.trim());
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
+  Future<void> _openNameScreen() async {
+    final result = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NameScreen(initialName: _name),
+      ),
     );
 
-    controller.dispose();
+    if (result == null || !mounted) return;
 
-    if (result == null || result.isEmpty || !mounted) return;
+    setState(() => _name = result);
+  }
+
+
+
+  Future<void> _editAbout() async {
+    final result = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AboutScreen(initialAbout: _about),
+      ),
+    );
+
+    if (result == null || !mounted) return;
+
+    setState(() {
+      _about = result;
+    });
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('bychat_profile_about', result);
+
       final user = FirebaseAuth.instance.currentUser;
 
-      if (user == null) {
-        throw Exception('User is not signed in.');
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .set(
+          {'about': result},
+          SetOptions(merge: true),
+        );
       }
-
-      final field = title == 'Name' ? 'name' : 'about';
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .set({
-        field: result,
-        'phoneNumber': user.phoneNumber ?? _phoneNumber,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      final prefs = await SharedPreferences.getInstance();
-
-      if (title == 'Name') {
-        await prefs.setString('bychat_profile_name', result);
-      } else {
-        await prefs.setString('bychat_profile_about', result);
-      }
-
-      if (!mounted) return;
-
-      setState(() {
-        if (title == 'Name') {
-          _name = result;
-        } else {
-          _about = result;
-        }
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$title updated successfully.')),
-      );
-    } catch (error) {
+    } catch (e) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not update $title. Please try again.'),
+        const SnackBar(
+          content: Text('About could not be saved to the server.'),
         ),
       );
     }
   }
+
+
 
   Widget _buildProfilePicture() {
     final path = _profileImagePath;
@@ -224,14 +190,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   bottom: 0,
                   child: CircleAvatar(
                     radius: 19,
-                    backgroundColor: const Color(0xFF6558F5),
+                    backgroundColor: const Color(0xFF20C875),
                     child: IconButton(
                       padding: EdgeInsets.zero,
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
-                              'Profile photo editing will be added next.',
+                              'Profile photo editing will be added later.',
                             ),
                           ),
                         );
@@ -239,7 +205,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       icon: const Icon(
                         Icons.camera_alt,
                         size: 19,
-                        color: Colors.white,
+                        color: Colors.black,
                       ),
                     ),
                   ),
@@ -274,14 +240,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title: const Text('Name'),
             subtitle: Text(_name),
             trailing: const Icon(Icons.edit_outlined),
-            onTap: () => _editField('Name', _name),
+            onTap: _openNameScreen,
           ),
           ListTile(
             leading: const Icon(Icons.info_outline),
             title: const Text('About'),
             subtitle: Text(_about),
             trailing: const Icon(Icons.edit_outlined),
-            onTap: () => _editField('About', _about),
+            onTap: _editAbout,
+          ),
+          ListTile(
+            leading: const Icon(Icons.alternate_email),
+            title: const Text('Username'),
+            subtitle: const Text('Reserve username'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Username screen is coming next.'),
+                ),
+              );
+            },
           ),
           ListTile(
             leading: const Icon(Icons.phone_outlined),
@@ -289,32 +268,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             subtitle: Text(_phoneNumber),
           ),
           ListTile(
-            leading: const Icon(Icons.wallpaper_outlined),
-            title: const Text('Background / Cover picture'),
-            subtitle: const Text('Personalize your profile'),
+            leading: const Icon(Icons.link),
+            title: const Text('Links'),
+            subtitle: const Text('Add social media links'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text(
-                    'Cover picture feature will be added later.',
-                  ),
-                ),
-              );
-            },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.business_outlined),
-            title: const Text('Business information'),
-            subtitle: const Text('Add your business details'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Business information feature will be added later.',
-                  ),
+                  content: Text('Links screen is coming later.'),
                 ),
               );
             },
