@@ -1,9 +1,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../home_screen/home_screen.dart';
+import '../Profile Info Screen/profile_info_screen.dart';
 
 class PermissionScreen extends StatefulWidget {
   const PermissionScreen({super.key});
@@ -12,7 +11,6 @@ class PermissionScreen extends StatefulWidget {
   static const Color tealColor = Color(0xFF009688);
   static const Color textColor = Color(0xFFF1F3F5);
   static const Color mutedColor = Color(0xFF9AA4AA);
-  static const Color iconBackground = Color(0xFF17221D);
 
   @override
   State<PermissionScreen> createState() => _PermissionScreenState();
@@ -21,37 +19,138 @@ class PermissionScreen extends StatefulWidget {
 class _PermissionScreenState extends State<PermissionScreen> {
   bool _isLoading = false;
 
-  Future<void> _continueWithPermissions() async {
+  Future<bool> _requestAccess({
+    required Permission permission,
+    required String title,
+    required String description,
+  }) async {
+    final status = await permission.request();
+
+    if (status.isGranted || status.isLimited) {
+      return true;
+    }
+
+    if (!mounted) return false;
+
+    final permanentlyDenied = status.isPermanentlyDenied;
+
+    final choice = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF222A2E),
+        title: Text(
+          title,
+          style: const TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          permanentlyDenied
+              ? '$description You can enable this permission in Settings '
+              'or continue without it for now.'
+              : '$description You can try again or continue without '
+              'this permission for now.',
+          style: const TextStyle(
+            color: Color(0xFFCDD3D6),
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, 'continue'),
+            child: const Text(
+              'Continue',
+              style: TextStyle(color: PermissionScreen.tealColor),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(
+              dialogContext,
+              permanentlyDenied ? 'settings' : 'retry',
+            ),
+            child: Text(
+              permanentlyDenied ? 'Open Settings' : 'Try Again',
+              style: const TextStyle(
+                color: PermissionScreen.tealColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (choice == 'retry') {
+      return _requestAccess(
+        permission: permission,
+        title: title,
+        description: description,
+      );
+    }
+
+    if (choice == 'settings') {
+      await openAppSettings();
+    }
+
+    // User may continue even if permission is denied.
+    return false;
+  }
+
+  Future<void> _continue() async {
+    if (_isLoading) return;
+
     setState(() => _isLoading = true);
 
     try {
-      // Request only the permissions used by this screen.
-      await Permission.contacts.request();
-      await Permission.photos.request();
-      await Permission.notification.request();
-    } catch (e) {
-      debugPrint('Permission request error: $e');
+      // 1. Request contacts access.
+      await _requestAccess(
+        permission: Permission.contacts,
+        title: 'Contacts permission',
+        description:
+        'ByChat uses contacts to help you find people you know.',
+      );
+
+      if (!mounted) return;
+
+      // 2. Request photos and videos access.
+      await _requestAccess(
+        permission: Permission.photos,
+        title: 'Photos and videos permission',
+        description:
+        'ByChat lets you choose photos and videos to share.',
+      );
+
+      if (!mounted) return;
+
+      // 3. Show loading before the Profile Info screen.
+      await Future.delayed(const Duration(milliseconds: 1200));
+
+      if (!mounted) return;
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => const ProfileInfoScreen(),
+        ),
+      );
+    } catch (error) {
+      debugPrint('Permission flow error: $error');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Something went wrong. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
-
-    if (!mounted) return;
-
-    setState(() => _isLoading = false);
-    _openHomeScreen();
-  }
-  Future<void> _skipPermissions() async {
-    await _openHomeScreen();
   }
 
-  Future<void> _openHomeScreen() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    await prefs.setBool('permission_screen_completed', true);
-
-    if (!mounted) return;
-
+  void _skip() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => const HomeScreen(),
+        builder: (_) => const ProfileInfoScreen(),
       ),
     );
   }
@@ -62,15 +161,14 @@ class _PermissionScreenState extends State<PermissionScreen> {
     required String description,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 28),
+      padding: const EdgeInsets.only(bottom: 25),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
             width: 58,
             height: 58,
             decoration: BoxDecoration(
-              color: PermissionScreen.iconBackground,
+              color: const Color(0xFF17221D),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(
@@ -79,7 +177,7 @@ class _PermissionScreenState extends State<PermissionScreen> {
               size: 29,
             ),
           ),
-          const SizedBox(width: 18),
+          const SizedBox(width: 17),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -88,16 +186,16 @@ class _PermissionScreenState extends State<PermissionScreen> {
                   title,
                   style: const TextStyle(
                     color: PermissionScreen.textColor,
-                    fontSize: 18,
+                    fontSize: 17,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 5),
                 Text(
                   description,
                   style: const TextStyle(
                     color: PermissionScreen.mutedColor,
-                    fontSize: 14,
+                    fontSize: 13,
                     height: 1.4,
                   ),
                 ),
@@ -114,131 +212,119 @@ class _PermissionScreenState extends State<PermissionScreen> {
     return Scaffold(
       backgroundColor: PermissionScreen.backgroundColor,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 26),
-          child: Column(
-            children: [
-              const Spacer(flex: 2),
-
-              Container(
-                width: 150,
-                height: 150,
-                decoration: BoxDecoration(
-                  color: PermissionScreen.iconBackground,
-                  borderRadius: BorderRadius.circular(38),
-                ),
-                child: const Icon(
-                  Icons.verified_user_rounded,
-                  size: 86,
-                  color: PermissionScreen.tealColor,
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              const Text(
-                'Allow Access',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: PermissionScreen.textColor,
-                  fontSize: 32,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              const Text(
-                'For the best experience on ByChat, '
-                    'you can allow access to the following:',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: PermissionScreen.mutedColor,
-                  fontSize: 16,
-                  height: 1.5,
-                ),
-              ),
-
-              const SizedBox(height: 42),
-
-              _permissionItem(
-                icon: Icons.contacts_rounded,
-                title: 'Contacts',
-                description:
-                'Find and connect with people you know on ByChat.',
-              ),
-
-              _permissionItem(
-                icon: Icons.photo_library_rounded,
-                title: 'Photos & Media',
-                description:
-                'Choose photos and videos to share in your chats.',
-              ),
-
-              _permissionItem(
-                icon: Icons.notifications_active_rounded,
-                title: 'Notifications',
-                description:
-                'Get notified about new messages and calls.',
-              ),
-
-              const Spacer(flex: 3),
-
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed:
-                  _isLoading ? null : _continueWithPermissions,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: PermissionScreen.tealColor,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor:
-                    PermissionScreen.tealColor.withValues(alpha: 0.6),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    elevation: 0,
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 26),
+              child: Column(
+                children: [
+                  const Spacer(flex: 2),
+                  const Icon(
+                    Icons.verified_user_rounded,
+                    color: PermissionScreen.tealColor,
+                    size: 90,
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      //strokeWidth: 2.5,
-                    ),
-                  )
-                      : const Text(
-                    'Continue',
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Allow Access',
                     style: TextStyle(
-                      fontSize: 17,
+                      color: PermissionScreen.textColor,
+                      fontSize: 30,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Connect with people and share moments '
+                        'with your friends on ByChat.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: PermissionScreen.mutedColor,
+                      fontSize: 15,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 38),
+                  _permissionItem(
+                    icon: Icons.contacts_rounded,
+                    title: 'Contacts',
+                    description:
+                    'Find and connect with people you know.',
+                  ),
+                  _permissionItem(
+                    icon: Icons.photo_library_rounded,
+                    title: 'Photos & Videos',
+                    description:
+                    'Choose photos and videos to share in chats.',
+                  ),
+                  _permissionItem(
+                    icon: Icons.notifications_active_rounded,
+                    title: 'Notifications',
+                    description:
+                    'Receive alerts about messages and calls.',
+                  ),
+                  const Spacer(flex: 3),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _continue,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: PermissionScreen.tealColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Continue',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _isLoading ? null : _skip,
+                    child: const Text(
+                      'Skip',
+                      style: TextStyle(
+                        color: PermissionScreen.tealColor,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
               ),
-
-              const SizedBox(height: 12),
-
-              TextButton(
-                onPressed: _isLoading ? null : _skipPermissions,
-                style: TextButton.styleFrom(
-                  foregroundColor: PermissionScreen.tealColor,
-                  minimumSize: const Size(100, 48),
+            ),
+            if (_isLoading)
+              Container(
+                color: PermissionScreen.backgroundColor.withValues(
+                  alpha: 0.96,
                 ),
-                child: const Text(
-                  'Skip',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                child: const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(
+                        color: PermissionScreen.tealColor,
+                      ),
+                      SizedBox(height: 20),
+                      Text(
+                        'Loading...',
+                        style: TextStyle(
+                          color: PermissionScreen.textColor,
+                          fontSize: 17,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-
-              const SizedBox(height: 12),
-            ],
-          ),
+          ],
         ),
       ),
     );

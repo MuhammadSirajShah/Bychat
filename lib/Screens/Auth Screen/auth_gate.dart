@@ -4,15 +4,33 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../Permission Screen/permission_screen.dart';
+import '../Profile Info Screen/profile_info_screen.dart';
 import '../Welcome Screen/welcome_screen.dart';
 import '../home_screen/home_screen.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
-  Future<bool> _hasCompletedPermissionScreen() async {
+  Future<Map<String, bool>> _getSetupStatus() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('permission_screen_completed') ?? false;
+
+    return {
+      'permissionsCompleted':
+      prefs.getBool('permission_screen_completed') ?? false,
+      'profileCompleted':
+      prefs.getBool('profile_setup_completed') ?? false,
+    };
+  }
+
+  Widget _loadingScreen() {
+    return const Scaffold(
+      backgroundColor: Color(0xFF171C20),
+      body: Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFF009688),
+        ),
+      ),
+    );
   }
 
   @override
@@ -21,40 +39,41 @@ class AuthGate extends StatelessWidget {
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            backgroundColor: Color(0xFF171C20),
-            body: Center(
-              child: CircularProgressIndicator(
-                color: Color(0xFF009688),
-              ),
-            ),
-          );
+          return _loadingScreen();
         }
 
         if (!snapshot.hasData) {
           return const WelcomeScreen();
         }
 
-        return FutureBuilder<bool>(
-          future: _hasCompletedPermissionScreen(),
-          builder: (context, permissionSnapshot) {
-            if (permissionSnapshot.connectionState ==
+        return FutureBuilder<Map<String, bool>>(
+          future: _getSetupStatus(),
+          builder: (context, setupSnapshot) {
+            if (setupSnapshot.connectionState ==
                 ConnectionState.waiting) {
-              return const Scaffold(
-                backgroundColor: Color(0xFF171C20),
-                body: Center(
-                  child: CircularProgressIndicator(
-                    color: Color(0xFF009688),
-                  ),
-                ),
-              );
+              return _loadingScreen();
             }
 
-            if (permissionSnapshot.data == true) {
+            if (setupSnapshot.hasError ||
+                !setupSnapshot.hasData) {
+              return _loadingScreen();
+            }
+
+            final setup = setupSnapshot.data!;
+            final permissionsCompleted =
+                setup['permissionsCompleted'] ?? false;
+            final profileCompleted =
+                setup['profileCompleted'] ?? false;
+
+            if (profileCompleted) {
               return const HomeScreen();
             }
 
-            return const PermissionScreen();
+            if (!permissionsCompleted) {
+              return const PermissionScreen();
+            }
+
+            return const ProfileInfoScreen();
           },
         );
       },
