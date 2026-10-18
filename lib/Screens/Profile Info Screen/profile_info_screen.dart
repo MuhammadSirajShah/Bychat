@@ -1,7 +1,9 @@
 
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -25,7 +27,6 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
   final ImagePicker _imagePicker = ImagePicker();
 
   XFile? _profileImage;
-  String _selectedEmoji = '';
   bool _isSaving = false;
   bool _showEmojiPicker = false;
 
@@ -62,7 +63,6 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
   Future<void> _saveAndContinue() async {
     final name = _nameController.text.trim();
 
-
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter your name.')),
@@ -70,14 +70,37 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
       return;
     }
 
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please verify your phone number first.'),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSaving = true);
 
     try {
+      // Save the profile to Firestore using the verified Firebase UID.
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .set({
+        'name': name,
+        'phoneNumber': user.phoneNumber ?? '',
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // Keep local preferences for the current device.
       final prefs = await SharedPreferences.getInstance();
 
+      await prefs.setString('bychat_profile_name', name);
       await prefs.setString(
-        'bychat_profile_name',
-        name,
+        'bychat_profile_phone',
+        user.phoneNumber ?? '',
       );
 
       if (_profileImage != null) {
@@ -103,7 +126,9 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Could not save your profile. Please try again.'),
+          content: Text(
+            'Could not save your profile. Check your internet connection and try again.',
+          ),
         ),
       );
     } finally {
@@ -202,7 +227,6 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                       style: TextStyle(color: _muted, fontSize: 14),
                     ),
                     const SizedBox(height: 42),
-
                     const Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
@@ -211,11 +235,9 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Name TextField: emojis iske andar nahi honge
                         Expanded(
                           child: Container(
                             decoration: const BoxDecoration(
@@ -248,10 +270,7 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                             ),
                           ),
                         ),
-
                         const SizedBox(width: 10),
-
-                        // Emoji button: TextField se bilkul alag
                         Material(
                           color: const Color(0xFF222A2E),
                           borderRadius: BorderRadius.circular(12),
@@ -271,7 +290,7 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                                     color: _teal,
                                     size: 24,
                                   ),
-                                  SizedBox(width: 4),
+                                  const SizedBox(width: 4),
                                   Icon(
                                     Icons.add,
                                     color: _teal,
@@ -284,13 +303,11 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 12),
-
                     const Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        "We imported this name from your phone's contacts. "
+                        'Choose a name your contacts will recognize. '
                             'You can change it any time.',
                         style: TextStyle(
                           color: _muted,
@@ -339,9 +356,10 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
               SizedBox(
                 height: 280,
                 child: EmojiPicker(
-
                   onEmojiSelected: (category, emoji) {
-                    final currentText = _nameController.text.trimRight();
+                    final currentText =
+                    _nameController.text.trimRight();
+
                     final newText = currentText.isEmpty
                         ? emoji.emoji
                         : '$currentText ${emoji.emoji}';
@@ -355,9 +373,6 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                       );
                     });
                   },
-
-
-
                   config: Config(
                     height: 280,
                     checkPlatformCompatibility: true,

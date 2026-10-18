@@ -1,4 +1,5 @@
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,6 +23,23 @@ class AuthGate extends StatelessWidget {
     };
   }
 
+  Future<bool> _hasCloudProfile(String uid) async {
+    final document = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
+
+    if (!document.exists) {
+      return false;
+    }
+
+    final data = document.data();
+
+    return data != null &&
+        data['name'] is String &&
+        (data['name'] as String).trim().isNotEmpty;
+  }
+
   Widget _loadingScreen() {
     return const Scaffold(
       backgroundColor: Color(0xFF171C20),
@@ -33,47 +51,105 @@ class AuthGate extends StatelessWidget {
     );
   }
 
+  Widget _errorScreen(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF171C20),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.cloud_off,
+                color: Colors.white70,
+                size: 48,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Unable to load your profile. Please check your internet connection and try again.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (_) => const AuthGate(),
+                    ),
+                  );
+                },
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+      builder: (context, authSnapshot) {
+        if (authSnapshot.connectionState == ConnectionState.waiting) {
           return _loadingScreen();
         }
 
-        if (!snapshot.hasData) {
+        final user = authSnapshot.data;
+
+        if (user == null) {
           return const WelcomeScreen();
         }
 
-        return FutureBuilder<Map<String, bool>>(
-          future: _getSetupStatus(),
-          builder: (context, setupSnapshot) {
-            if (setupSnapshot.connectionState ==
+        return FutureBuilder<bool>(
+          future: _hasCloudProfile(user.uid),
+          builder: (context, cloudSnapshot) {
+            if (cloudSnapshot.connectionState ==
                 ConnectionState.waiting) {
               return _loadingScreen();
             }
 
-            if (setupSnapshot.hasError ||
-                !setupSnapshot.hasData) {
-              return _loadingScreen();
+            if (cloudSnapshot.hasError) {
+              return _errorScreen(context);
             }
 
-            final setup = setupSnapshot.data!;
-            final permissionsCompleted =
-                setup['permissionsCompleted'] ?? false;
-            final profileCompleted =
-                setup['profileCompleted'] ?? false;
-
-            if (profileCompleted) {
+            if (cloudSnapshot.data == true) {
               return const HomeScreen();
             }
 
-            if (!permissionsCompleted) {
-              return const PermissionScreen();
-            }
+            return FutureBuilder<Map<String, bool>>(
+              future: _getSetupStatus(),
+              builder: (context, setupSnapshot) {
+                if (setupSnapshot.connectionState ==
+                    ConnectionState.waiting) {
+                  return _loadingScreen();
+                }
 
-            return const ProfileInfoScreen();
+                if (setupSnapshot.hasError ||
+                    !setupSnapshot.hasData) {
+                  return _errorScreen(context);
+                }
+
+                final setup = setupSnapshot.data!;
+                final permissionsCompleted =
+                    setup['permissionsCompleted'] ?? false;
+                final profileCompleted =
+                    setup['profileCompleted'] ?? false;
+
+                if (profileCompleted) {
+                  return const HomeScreen();
+                }
+
+                if (!permissionsCompleted) {
+                  return const PermissionScreen();
+                }
+
+                return const ProfileInfoScreen();
+              },
+            );
           },
         );
       },
