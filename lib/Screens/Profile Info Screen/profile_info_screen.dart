@@ -1,6 +1,7 @@
 
 import 'dart:io';
 
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -26,13 +27,7 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
   XFile? _profileImage;
   String _selectedEmoji = '😊';
   bool _isSaving = false;
-
-  final List<String> _emojis = [
-    '😊', '😀', '😎', '🥰', '🤗', '😇',
-    '❤️', '🔥', '✨', '🌟', '🌸', '🌹',
-    '💙', '💚', '💯', '👑', '🦋', '🌙',
-    '🚀', '🎯', '🎉', '🤝', '🙌', '💫',
-  ];
+  bool _showEmojiPicker = false;
 
   Future<void> _pickImage() async {
     try {
@@ -56,57 +51,12 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
     }
   }
 
-  Future<void> _chooseEmoji() async {
-    final emoji = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: const Color(0xFF222A2E),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(24),
-        ),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Choose an emoji',
-                style: TextStyle(
-                  color: _text,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Wrap(
-                spacing: 14,
-                runSpacing: 18,
-                children: _emojis.map((emoji) {
-                  return InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: () => Navigator.pop(context, emoji),
-                    child: Padding(
-                      padding: const EdgeInsets.all(5),
-                      child: Text(
-                        emoji,
-                        style: const TextStyle(fontSize: 29),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 15),
-            ],
-          ),
-        ),
-      ),
-    );
+  void _toggleEmojiPicker() {
+    FocusScope.of(context).unfocus();
 
-    if (emoji != null && mounted) {
-      setState(() => _selectedEmoji = emoji);
-    }
+    setState(() {
+      _showEmojiPicker = !_showEmojiPicker;
+    });
   }
 
   Future<void> _saveAndContinue() async {
@@ -179,161 +129,216 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
         title: const Text('Profile Info'),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(26, 22, 26, 28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const Text(
-                'Please add your name and an optional profile picture.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: _muted,
-                  fontSize: 15,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 34),
-              GestureDetector(
-                onTap: _pickImage,
-                child: Stack(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(26, 22, 26, 28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Container(
-                      width: 130,
-                      height: 130,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF222A2E),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: _teal, width: 2),
-                        image: _profileImage == null
-                            ? null
-                            : DecorationImage(
-                          image: FileImage(
-                            File(_profileImage!.path),
-                          ),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      child: _profileImage == null
-                          ? const Icon(
-                        Icons.person_rounded,
+                    const Text(
+                      'Please add your name and an optional profile picture.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
                         color: _muted,
-                        size: 72,
-                      )
-                          : null,
+                        fontSize: 15,
+                        height: 1.5,
+                      ),
                     ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        width: 42,
-                        height: 42,
-                        decoration: const BoxDecoration(
-                          color: _teal,
-                          shape: BoxShape.circle,
+                    const SizedBox(height: 34),
+                    GestureDetector(
+                      onTap: _pickImage,
+                      child: Stack(
+                        children: [
+                          Container(
+                            width: 130,
+                            height: 130,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF222A2E),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: _teal, width: 2),
+                              image: _profileImage == null
+                                  ? null
+                                  : DecorationImage(
+                                image: FileImage(
+                                  File(_profileImage!.path),
+                                ),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            child: _profileImage == null
+                                ? const Icon(
+                              Icons.person_rounded,
+                              color: _muted,
+                              size: 72,
+                            )
+                                : null,
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              width: 42,
+                              height: 42,
+                              decoration: const BoxDecoration(
+                                color: _teal,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.camera_alt_rounded,
+                                color: Colors.white,
+                                size: 21,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    const Text(
+                      'Add profile photo (optional)',
+                      style: TextStyle(color: _muted, fontSize: 14),
+                    ),
+                    const SizedBox(height: 42),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Your name',
+                        style: TextStyle(color: _muted, fontSize: 14),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: _teal, width: 1.5),
                         ),
-                        child: const Icon(
-                          Icons.camera_alt_rounded,
-                          color: Colors.white,
-                          size: 21,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _nameController,
+                              onTap: () {
+                                if (_showEmojiPicker) {
+                                  setState(() => _showEmojiPicker = false);
+                                }
+                              },
+                              style: const TextStyle(
+                                color: _text,
+                                fontSize: 17,
+                              ),
+                              textCapitalization: TextCapitalization.words,
+                              maxLength: 40,
+                              decoration: const InputDecoration(
+                                hintText: 'Enter your name',
+                                hintStyle: TextStyle(color: _muted),
+                                counterText: '',
+                                border: InputBorder.none,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: _toggleEmojiPicker,
+                            tooltip: 'Choose emoji',
+                            icon: Text(
+                              _selectedEmoji,
+                              style: const TextStyle(fontSize: 26),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        "We imported this name from your phone's contacts. "
+                            'You can change it any time.',
+                        style: TextStyle(
+                          color: _muted,
+                          fontSize: 12,
+                          height: 1.5,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 55,
+                      child: ElevatedButton(
+                        onPressed: _isSaving ? null : _saveAndContinue,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _teal,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: _isSaving
+                            ? const SizedBox(
+                          width: 23,
+                          height: 23,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.5,
+                          ),
+                        )
+                            : const Text(
+                          'Next',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 14),
-              const Text(
-                'Add profile photo (optional)',
-                style: TextStyle(color: _muted, fontSize: 14),
-              ),
-              const SizedBox(height: 42),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Your name',
-                  style: TextStyle(color: _muted, fontSize: 14),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                decoration: const BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(color: _teal, width: 1.5),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _nameController,
-                        style: const TextStyle(
-                          color: _text,
-                          fontSize: 17,
-                        ),
-                        textCapitalization: TextCapitalization.words,
-                        maxLength: 40,
-                        decoration: const InputDecoration(
-                          hintText: 'Enter your name',
-                          hintStyle: TextStyle(color: _muted),
-                          counterText: '',
-                          border: InputBorder.none,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: _chooseEmoji,
-                      tooltip: 'Choose emoji',
-                      icon: Text(
-                        _selectedEmoji,
-                        style: const TextStyle(fontSize: 26),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Choose an emoji to add to your name.',
-                  style: TextStyle(color: _muted, fontSize: 12),
-                ),
-              ),
-              const SizedBox(height: 48),
+            ),
+            if (_showEmojiPicker)
               SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  onPressed: _isSaving ? null : _saveAndContinue,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _teal,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
+                height: 280,
+                child: EmojiPicker(
+                  onEmojiSelected: (category, emoji) {
+                    setState(() {
+                      _selectedEmoji = emoji.emoji;
+                      _showEmojiPicker = false;
+                    });
+                  },
+                  config: Config(
+                    height: 280,
+                    checkPlatformCompatibility: true,
+                    emojiViewConfig: EmojiViewConfig(
+                      backgroundColor: const Color(0xFF222A2E),
+                      emojiSizeMax: 30,
+                      columns: 8,
+                      verticalSpacing: 8,
+                      horizontalSpacing: 8,
                     ),
-                    elevation: 0,
-                  ),
-                  child: _isSaving
-                      ? const SizedBox(
-                    width: 23,
-                    height: 23,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2.5,
+                    categoryViewConfig: const CategoryViewConfig(
+                      backgroundColor: Color(0xFF171C20),
+                      indicatorColor: _teal,
+                      iconColor: _muted,
+                      iconColorSelected: _teal,
                     ),
-                  )
-                      : const Text(
-                    'Next',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
+                    bottomActionBarConfig: const BottomActionBarConfig(
+                      backgroundColor: Color(0xFF171C20),
+                      buttonColor: Color(0xFF222A2E),
+                      buttonIconColor: _text,
+                    ),
+                    searchViewConfig: const SearchViewConfig(
+                      backgroundColor: Color(0xFF222A2E),
+                      buttonIconColor: _muted,
+                      hintText: 'Search emoji',
                     ),
                   ),
                 ),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );
