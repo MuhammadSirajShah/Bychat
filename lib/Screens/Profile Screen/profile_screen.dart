@@ -1,6 +1,8 @@
 
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -25,21 +27,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadProfile() async {
-    final prefs = await SharedPreferences.getInstance();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final user = FirebaseAuth.instance.currentUser;
 
-    if (!mounted) return;
+      String name = prefs.getString('bychat_profile_name') ?? 'Your Name';
+      String about = prefs.getString('bychat_profile_about') ??
+          'Hey there! I am using ByChat.';
+      String phoneNumber = user?.phoneNumber ??
+          prefs.getString('bychat_profile_phone') ??
+          prefs.getString('bychat_phone_number') ??
+          'Not added yet';
 
-    setState(() {
-      _name = prefs.getString('bychat_profile_name') ?? 'Your Name';
-      _profileImagePath =
-          prefs.getString('bychat_profile_image_path');
-      _phoneNumber =
-          prefs.getString('bychat_phone_number') ?? 'Not added yet';
-      _about =
-          prefs.getString('bychat_profile_about') ??
-              'Hey there! I am using ByChat.';
-      _isLoading = false;
-    });
+      // Load the cloud profile when the user is signed in.
+      if (user != null) {
+        final document = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        final data = document.data();
+
+        if (document.exists && data != null) {
+          name = (data['name'] as String?) ?? name;
+          about = (data['about'] as String?) ?? about;
+          phoneNumber =
+              (data['phoneNumber'] as String?) ?? phoneNumber;
+
+          // Keep local text fields in sync with the cloud.
+          await prefs.setString('bychat_profile_name', name);
+          await prefs.setString('bychat_profile_about', about);
+          await prefs.setString('bychat_profile_phone', phoneNumber);
+        }
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _name = name;
+        _about = about;
+        _phoneNumber = phoneNumber;
+        _profileImagePath =
+            prefs.getString('bychat_profile_image_path');
+        _isLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not load the cloud profile. Check your connection.',
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _editField(String title, String currentValue) async {
@@ -80,30 +126,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (result == null || result.isEmpty || !mounted) return;
 
-    final prefs = await SharedPreferences.getInstance();
+    try {
+      final user = FirebaseAuth.instance.currentUser;
 
-    if (title == 'Name') {
-      await prefs.setString('bychat_profile_name', result);
-    } else {
-      await prefs.setString('bychat_profile_about', result);
-    }
-
-    if (!mounted) return;
-
-    setState(() {
-      if (title == 'Name') {
-        _name = result;
-      } else {
-        _about = result;
+      if (user == null) {
+        throw Exception('User is not signed in.');
       }
-    });
+
+      final field = title == 'Name' ? 'name' : 'about';
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .set({
+        field: result,
+        'phoneNumber': user.phoneNumber ?? _phoneNumber,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      final prefs = await SharedPreferences.getInstance();
+
+      if (title == 'Name') {
+        await prefs.setString('bychat_profile_name', result);
+      } else {
+        await prefs.setString('bychat_profile_about', result);
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        if (title == 'Name') {
+          _name = result;
+        } else {
+          _about = result;
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$title updated successfully.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not update $title. Please try again.'),
+        ),
+      );
+    }
   }
 
   Widget _buildProfilePicture() {
     final path = _profileImagePath;
-    final hasImage = path != null &&
-        path.isNotEmpty &&
-        File(path).existsSync();
+    final hasImage =
+        path != null && path.isNotEmpty && File(path).existsSync();
 
     return CircleAvatar(
       radius: 58,
@@ -220,7 +296,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Cover picture feature will be added later.'),
+                  content: Text(
+                    'Cover picture feature will be added later.',
+                  ),
                 ),
               );
             },
@@ -234,7 +312,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Business information feature will be added later.'),
+                  content: Text(
+                    'Business information feature will be added later.',
+                  ),
                 ),
               );
             },
