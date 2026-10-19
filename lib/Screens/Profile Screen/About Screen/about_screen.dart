@@ -45,20 +45,19 @@ class _AboutScreenState extends State<AboutScreen> {
 
     final initial = widget.initialAbout.trim();
 
-    if (initial.isNotEmpty) {
-      final match = RegExp(
-        r'^(\X)\s*(.*)$',
-        unicode: true,
-      ).firstMatch(initial);
+    for (final item in _suggestions) {
+      final emoji = item['emoji']!;
 
-      if (match != null && _isEmoji(match.group(1)!)) {
-        _emoji = match.group(1)!;
-        _controller.text = match.group(2) ?? '';
-      } else {
-        _controller.text = initial;
+      if (initial.startsWith(emoji)) {
+        _emoji = emoji;
+        _controller.text = initial.substring(emoji.length).trimLeft();
+        return;
       }
     }
+
+    _controller.text = initial;
   }
+
 
   bool _isEmoji(String value) {
     return value.runes.any((rune) =>
@@ -290,117 +289,95 @@ class _AboutScreenState extends State<AboutScreen> {
             ),
 
             // Bottom preview panel
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(28, 18, 28, 22),
-              decoration: const BoxDecoration(
-                color: panel,
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(35),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+
+            DraggableScrollableSheet(
+              initialChildSize: 0.30,
+              minChildSize: 0.12,
+              maxChildSize: 0.75,
+              expand: false,
+              builder: (context, scrollController) {
+                return Container(
+                  decoration: const BoxDecoration(
+                    color: panel,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(35),
+                    ),
+                  ),
+                  child: ListView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.fromLTRB(28, 18, 28, 22),
                     children: [
-                      const Expanded(
-                        child: Text(
-                          'Preview',
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 17,
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Preview',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 17,
+                              ),
+                            ),
                           ),
-                        ),
+                          IconButton(
+                            onPressed: _save,
+                            style: IconButton.styleFrom(
+                              backgroundColor: green,
+                              foregroundColor: Colors.black,
+                              fixedSize: const Size(54, 54),
+                            ),
+                            icon: const Icon(Icons.check, size: 30),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        onPressed: _save,
-                        style: IconButton.styleFrom(
-                          backgroundColor: green,
-                          foregroundColor: Colors.black,
-                          fixedSize: const Size(54, 54),
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: background,
+                          borderRadius: BorderRadius.circular(22),
                         ),
-                        icon: const Icon(
-                          Icons.check,
-                          size: 30,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const CircleAvatar(
+                              radius: 23,
+                              child: Icon(Icons.person),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Your Name',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 19,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _fullAbout.isEmpty
+                                        ? 'Your About appears here'
+                                        : _fullAbout,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-
-                  const SizedBox(height: 12),
-
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: background,
-                      borderRadius: BorderRadius.circular(22),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const CircleAvatar(
-                          radius: 23,
-                          backgroundColor: Color(0xFF51473F),
-                          child: Icon(
-                            Icons.person,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment:
-                            CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Your Name',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 19,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _fullAbout.isEmpty
-                                    ? 'Your About appears here'
-                                    : _fullAbout,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: panel,
-                                  borderRadius: BorderRadius.circular(25),
-                                ),
-                                child: Text(
-                                  _fullAbout.isEmpty
-                                      ? '😊 About'
-                                      : _fullAbout,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
+
           ],
         ),
       ),
