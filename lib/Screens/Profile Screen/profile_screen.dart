@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'About Screen/about_screen.dart';
 import 'Name Screen/name_screen.dart';
+import 'User Name Screen/username_screen.dart';
 
 
 class ProfileScreen extends StatefulWidget {
@@ -23,6 +24,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _phoneNumber = 'Not added yet';
   String? _profileImagePath;
   bool _isLoading = true;
+  String _username = '';
 
   @override
   void initState() {
@@ -55,6 +57,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           name = data['name'] as String? ?? name;
           about = data['about'] as String? ?? about;
           phone = data['phoneNumber'] as String? ?? phone;
+          _username = data['username'] as String? ?? '';
 
           await prefs.setString('bychat_profile_name', name);
           await prefs.setString('bychat_profile_about', about);
@@ -71,6 +74,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _profileImagePath =
             prefs.getString('bychat_profile_image_path');
         _isLoading = false;
+        _username = _username;
       });
     } catch (e) {
       if (!mounted) return;
@@ -96,6 +100,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (result == null || !mounted) return;
 
     setState(() => _name = result);
+  }
+
+  Future<void> _openUsernameScreen() async {
+    final result = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => UsernameScreen(
+          initialUsername: _username,
+        ),
+      ),
+    );
+
+    if (result == null || !mounted) return;
+
+    setState(() {
+      _username = result;
+    });
   }
 
 
@@ -252,15 +273,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ListTile(
             leading: const Icon(Icons.alternate_email),
             title: const Text('Username'),
-            subtitle: const Text('Reserve username'),
+            subtitle: Text(
+              _username.isEmpty ? 'Set your username' : '@$_username',
+            ),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Username screen is coming next.'),
-                ),
-              );
-            },
+            onTap: _openUsernameScreen,
           ),
           ListTile(
             leading: const Icon(Icons.phone_outlined),
