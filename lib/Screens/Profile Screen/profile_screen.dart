@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'About Screen/about_screen.dart';
+import 'Links Screen/links_screen.dart';
 import 'Name Screen/name_screen.dart';
 import 'User Name Screen/username_screen.dart';
 
@@ -290,9 +291,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             subtitle: const Text('Add social media links'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Links screen is coming later.'),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const LinksScreen(),
                 ),
               );
             },
