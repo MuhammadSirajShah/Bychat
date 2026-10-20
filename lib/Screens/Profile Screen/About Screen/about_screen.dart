@@ -50,7 +50,8 @@ class _AboutScreenState extends State<AboutScreen> {
 
       if (initial.startsWith(emoji)) {
         _emoji = emoji;
-        _controller.text = initial.substring(emoji.length).trimLeft();
+        _controller.text =
+            initial.substring(emoji.length).trimLeft();
         return;
       }
     }
@@ -58,19 +59,12 @@ class _AboutScreenState extends State<AboutScreen> {
     _controller.text = initial;
   }
 
-
-  bool _isEmoji(String value) {
-    return value.runes.any((rune) =>
-    rune >= 0x1F000 ||
-        rune == 0x2764 ||
-        rune == 0x2708 ||
-        rune == 0x2600);
-  }
-
   String get _fullAbout {
     final text = _controller.text.trim();
+
     if (_emoji.isEmpty) return text;
     if (text.isEmpty) return _emoji;
+
     return '$_emoji $text';
   }
 
@@ -84,12 +78,14 @@ class _AboutScreenState extends State<AboutScreen> {
     });
   }
 
-  Future<void> _save() async {
+  void _save() {
     final result = _fullAbout.trim();
 
     if (result.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your About')),
+        const SnackBar(
+          content: Text('Please enter your About'),
+        ),
       );
       return;
     }
@@ -117,21 +113,18 @@ class _AboutScreenState extends State<AboutScreen> {
         ),
       ),
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            Expanded(
+            // TOP CONTENT: input, duration, privacy and suggestions
+            Positioned.fill(
               child: ListView(
-                padding: const EdgeInsets.only(
-                  left: 32,
-                  right: 32,
-                  top: 34,
-                  bottom: 16,
+                padding: const EdgeInsets.fromLTRB(
+                  32, 22, 32, 30,
                 ),
                 children: [
-                  // About input
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
+                      horizontal: 12,
                     ),
                     decoration: BoxDecoration(
                       border: Border.all(
@@ -145,18 +138,17 @@ class _AboutScreenState extends State<AboutScreen> {
                         GestureDetector(
                           onTap: () {
                             setState(() {
-                              _emoji = _emoji.isEmpty ? '😊' : '';
+                              _emoji =
+                              _emoji.isEmpty ? '😊' : '';
                             });
                           },
                           child: Padding(
-                            padding: const EdgeInsets.only(
-                              right: 16,
-                              top: 12,
-                              bottom: 12,
-                            ),
+                            padding: const EdgeInsets.all(8),
                             child: Text(
                               _emoji.isEmpty ? '😊' : _emoji,
-                              style: const TextStyle(fontSize: 30),
+                              style: const TextStyle(
+                                fontSize: 29,
+                              ),
                             ),
                           ),
                         ),
@@ -167,7 +159,7 @@ class _AboutScreenState extends State<AboutScreen> {
                             maxLength: 139,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 20,
+                              fontSize: 19,
                             ),
                             decoration: const InputDecoration(
                               hintText: 'About',
@@ -189,18 +181,16 @@ class _AboutScreenState extends State<AboutScreen> {
                           icon: const Icon(
                             Icons.cancel_outlined,
                             color: Colors.grey,
-                            size: 27,
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 16),
 
-                  // Duration and privacy
                   Wrap(
-                    spacing: 12,
+                    spacing: 10,
                     runSpacing: 10,
                     children: [
                       _optionButton(
@@ -208,7 +198,7 @@ class _AboutScreenState extends State<AboutScreen> {
                         text: _duration,
                         onTap: () => _chooseOption(
                           title: 'Duration',
-                          options: [
+                          options: const [
                             '1 day',
                             '1 week',
                             '1 month',
@@ -225,7 +215,7 @@ class _AboutScreenState extends State<AboutScreen> {
                         text: _privacy,
                         onTap: () => _chooseOption(
                           title: 'Who can see my About?',
-                          options: [
+                          options: const [
                             'Everyone',
                             'My contacts',
                             'My contacts except...',
@@ -240,7 +230,7 @@ class _AboutScreenState extends State<AboutScreen> {
                     ],
                   ),
 
-                  const SizedBox(height: 34),
+                  const SizedBox(height: 28),
 
                   const Text(
                     'Suggestions',
@@ -251,7 +241,7 @@ class _AboutScreenState extends State<AboutScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
 
                   ..._suggestions.map((item) {
                     final selected =
@@ -262,7 +252,7 @@ class _AboutScreenState extends State<AboutScreen> {
                       contentPadding: EdgeInsets.zero,
                       leading: Text(
                         item['emoji']!,
-                        style: const TextStyle(fontSize: 31),
+                        style: const TextStyle(fontSize: 30),
                       ),
                       title: Text(
                         item['text']!,
@@ -275,7 +265,6 @@ class _AboutScreenState extends State<AboutScreen> {
                           ? const Icon(
                         Icons.check,
                         color: green,
-                        size: 27,
                       )
                           : null,
                       onTap: () => _selectSuggestion(
@@ -288,94 +277,145 @@ class _AboutScreenState extends State<AboutScreen> {
               ),
             ),
 
-            // Bottom preview panel
+            // DRAGGABLE PREVIEW PANEL
 
-            DraggableScrollableSheet(
-              initialChildSize: 0.30,
-              minChildSize: 0.12,
-              maxChildSize: 0.75,
-              expand: false,
-              builder: (context, scrollController) {
-                return Container(
-                  decoration: const BoxDecoration(
-                    color: panel,
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(35),
+            Positioned.fill(
+              child: DraggableScrollableSheet(
+                initialChildSize: 0.15,
+                minChildSize: 0.12,
+                maxChildSize: 0.55,
+                snap: true,
+                snapSizes: const [0.12, 0.15, 0.55],
+                builder: (context, scrollController) {
+                  return Container(
+                    decoration: const BoxDecoration(
+                      color: panel,
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(32),
+                      ),
                     ),
-                  ),
-                  child: ListView(
-                    controller: scrollController,
-                    padding: const EdgeInsets.fromLTRB(28, 18, 28, 22),
-                    children: [
-                      Row(
-                        children: [
-                          const Expanded(
-                            child: Text(
-                              'Preview',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 17,
+                    child: ListView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.fromLTRB(
+                        28, 12, 28, 24,
+                      ),
+                      children: [
+                        // Drag handle
+                        Center(
+                          child: Container(
+                            width: 40,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: Colors.white38,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 8),
+
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                'Preview',
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 17,
+                                ),
                               ),
                             ),
-                          ),
-                          IconButton(
-                            onPressed: _save,
-                            style: IconButton.styleFrom(
-                              backgroundColor: green,
-                              foregroundColor: Colors.black,
-                              fixedSize: const Size(54, 54),
-                            ),
-                            icon: const Icon(Icons.check, size: 30),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: background,
-                          borderRadius: BorderRadius.circular(22),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const CircleAvatar(
-                              radius: 23,
-                              child: Icon(Icons.person),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Your Name',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 19,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _fullAbout.isEmpty
-                                        ? 'Your About appears here'
-                                        : _fullAbout,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ],
+                            IconButton(
+                              onPressed: _save,
+                              style: IconButton.styleFrom(
+                                backgroundColor: green,
+                                foregroundColor: Colors.black,
+                                fixedSize: const Size(50, 50),
+                              ),
+                              icon: const Icon(
+                                Icons.check,
+                                size: 30,
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+
+                        const SizedBox(height: 12),
+
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: background,
+                            borderRadius: BorderRadius.circular(22),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 23,
+                                    backgroundColor: Color(0xFF51473F),
+                                    child: Icon(
+                                      Icons.person,
+                                      color: Colors.white,
+                                      size: 28,
+                                    ),
+                                  ),
+                                  SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Your Name',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 19,
+                                          ),
+                                        ),
+                                        SizedBox(height: 3),
+                                        Text(
+                                          'How others see your About',
+                                          style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 18),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: panel,
+                                  borderRadius: BorderRadius.circular(25),
+                                ),
+                                child: Text(
+                                  _fullAbout.isEmpty
+                                      ? '😊 About'
+                                      : _fullAbout,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
 
           ],
@@ -391,7 +431,11 @@ class _AboutScreenState extends State<AboutScreen> {
   }) {
     return OutlinedButton.icon(
       onPressed: onTap,
-      icon: Icon(icon, color: Colors.white, size: 21),
+      icon: Icon(
+        icon,
+        color: Colors.white,
+        size: 21,
+      ),
       label: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -402,7 +446,7 @@ class _AboutScreenState extends State<AboutScreen> {
               fontSize: 14,
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
           const Icon(
             Icons.arrow_drop_down,
             color: Colors.white,
@@ -410,7 +454,9 @@ class _AboutScreenState extends State<AboutScreen> {
         ],
       ),
       style: OutlinedButton.styleFrom(
-        side: const BorderSide(color: Color(0xFF303639)),
+        side: const BorderSide(
+          color: Color(0xFF303639),
+        ),
         padding: const EdgeInsets.symmetric(
           horizontal: 12,
           vertical: 12,
@@ -449,12 +495,19 @@ class _AboutScreenState extends State<AboutScreen> {
                     (option) => ListTile(
                   title: Text(
                     option,
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(
+                      color: Colors.white,
+                    ),
                   ),
                   trailing: option == selected
-                      ? const Icon(Icons.check, color: green)
+                      ? const Icon(
+                    Icons.check,
+                    color: green,
+                  )
                       : null,
-                  onTap: () => Navigator.pop(sheetContext, option),
+                  onTap: () {
+                    Navigator.pop(sheetContext, option);
+                  },
                 ),
               ),
               const SizedBox(height: 12),
@@ -464,6 +517,8 @@ class _AboutScreenState extends State<AboutScreen> {
       },
     );
 
-    if (value != null) onSelected(value);
+    if (value != null && mounted) {
+      onSelected(value);
+    }
   }
 }
