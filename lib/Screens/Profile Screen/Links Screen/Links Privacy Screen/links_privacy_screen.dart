@@ -13,22 +13,24 @@ class LinksPrivacyScreen extends StatefulWidget {
 
 class _LinksPrivacyScreenState extends State<LinksPrivacyScreen> {
   static const Color _green = Color(0xFF20C875);
+  static const Color _background = Color(0xFF0B1013);
+  static const Color _muted = Color(0xFF929A9E);
 
-  String _selectedPrivacy = 'everyone';
-  bool _isLoading = true;
-  bool _isSaving = false;
+  String _selected = 'everyone';
+  bool _loading = true;
+  bool _saving = false;
 
   final List<Map<String, dynamic>> _options = [
     {
       'value': 'everyone',
       'title': 'Everyone',
-      'description': 'Anyone on ByChat can see your links.',
+      'description': 'All ByChat users can see your profile links.',
       'icon': Icons.public,
     },
     {
       'value': 'myContacts',
       'title': 'My contacts',
-      'description': 'Only your contacts can see your links.',
+      'description': 'Only your selected contacts can see your links.',
       'icon': Icons.people_outline,
     },
     {
@@ -40,14 +42,13 @@ class _LinksPrivacyScreenState extends State<LinksPrivacyScreen> {
     {
       'value': 'nobody',
       'title': 'Nobody',
-      'description': 'Your links will be hidden from everyone else.',
+      'description': 'Your profile links are hidden from other users.',
       'icon': Icons.lock_outline,
     },
   ];
 
   DocumentReference<Map<String, dynamic>>? get _userDocument {
     final user = FirebaseAuth.instance.currentUser;
-
     if (user == null) return null;
 
     return FirebaseFirestore.instance
@@ -66,13 +67,13 @@ class _LinksPrivacyScreenState extends State<LinksPrivacyScreen> {
       final document = _userDocument;
 
       if (document == null) {
-        throw Exception('Please sign in again.');
+        throw Exception('Please sign in first.');
       }
 
       final snapshot = await document.get();
-      final savedValue = snapshot.data()?['linksPrivacy'];
+      final value = snapshot.data()?['linksPrivacy'] as String?;
 
-      const validValues = [
+      const validOptions = [
         'everyone',
         'myContacts',
         'myContactsExcept',
@@ -81,17 +82,16 @@ class _LinksPrivacyScreenState extends State<LinksPrivacyScreen> {
 
       if (mounted) {
         setState(() {
-          _selectedPrivacy =
-          savedValue is String && validValues.contains(savedValue)
-              ? savedValue
-              : 'everyone';
-          _isLoading = false;
+          if (value != null && validOptions.contains(value)) {
+            _selected = value;
+          }
+          _loading = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
 
-      setState(() => _isLoading = false);
+      setState(() => _loading = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -102,192 +102,167 @@ class _LinksPrivacyScreenState extends State<LinksPrivacyScreen> {
   }
 
   Future<void> _savePrivacy(String value) async {
-    if (_isSaving || value == _selectedPrivacy) return;
+    if (_saving || value == _selected) return;
 
     final document = _userDocument;
 
     if (document == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please sign in again.'),
+          content: Text('Please sign in first.'),
         ),
       );
       return;
     }
 
-    final previousValue = _selectedPrivacy;
+    final previousValue = _selected;
 
     setState(() {
-      _selectedPrivacy = value;
-      _isSaving = true;
+      _selected = value;
+      _saving = true;
     });
 
     try {
-      await document.set({
-        'linksPrivacy': value,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Links privacy settings saved.'),
-        ),
+      await document.set(
+        {
+          'linksPrivacy': value,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
       );
 
-      Navigator.pop(context, value);
-    } catch (_) {
       if (!mounted) return;
-
-      setState(() => _selectedPrivacy = previousValue);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Could not save settings. Check your connection and Firestore rules.',
-          ),
+          content: Text('Links privacy saved.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() => _selected = previousValue);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not save privacy setting: $e'),
         ),
       );
     } finally {
       if (mounted) {
-        setState(() => _isSaving = false);
+        setState(() => _saving = false);
       }
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+  Widget _buildOption(Map<String, dynamic> option) {
+    final value = option['value'] as String;
+    final isSelected = _selected == value;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Links Privacy',
-          style: TextStyle(fontWeight: FontWeight.bold),
+    return InkWell(
+      onTap: _saving ? null : () => _savePrivacy(value),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 22,
+          vertical: 16,
         ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: _green.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(20),
+        child: Row(
+          children: [
+            Icon(
+              option['icon'] as IconData,
+              color: isSelected ? _green : _muted,
+              size: 25,
             ),
-            child: const Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.shield_outlined,
-                  color: _green,
-                  size: 30,
-                ),
-                SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Your links, your choice',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 6),
-                      Text(
-                        'Choose who can see the social links on your profile.',
-                        style: TextStyle(height: 1.5),
-                      ),
-                    ],
+            const SizedBox(width: 18),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    option['title'] as String,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 28),
-          const Text(
-            'WHO CAN SEE LINKS ON MY PROFILE?',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.1,
-            ),
-          ),
-          const SizedBox(height: 14),
-          ..._options.map((option) {
-            final value = option['value'] as String;
-            final selected = value == _selectedPrivacy;
-
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              elevation: 0,
-              color: selected
-                  ? _green.withValues(alpha: 0.10)
-                  : theme.colorScheme.surfaceContainerLow,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(
-                  color: selected
-                      ? _green
-                      : theme.dividerColor.withValues(alpha: 0.25),
-                ),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                leading: CircleAvatar(
-                  backgroundColor: _green.withValues(alpha: 0.12),
-                  child: Icon(
-                    option['icon'] as IconData,
-                    color: _green,
-                  ),
-                ),
-                title: Text(
-                  option['title'] as String,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 5),
-                  child: Text(
+                  const SizedBox(height: 5),
+                  Text(
                     option['description'] as String,
+                    style: const TextStyle(
+                      color: _muted,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
                   ),
-                ),
-                trailing: selected
-                    ? const Icon(
-                  Icons.check_circle,
-                  color: _green,
-                )
-                    : const Icon(Icons.circle_outlined),
-                onTap: _isSaving
-                    ? null
-                    : () => _savePrivacy(value),
+                ],
               ),
-            );
-          }),
-          if (_isSaving) ...[
-            const SizedBox(height: 12),
-            const Center(
-              child: CircularProgressIndicator(),
+            ),
+            const SizedBox(width: 12),
+            Icon(
+              isSelected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              color: isSelected ? _green : const Color(0xFF41494E),
+              size: 25,
             ),
           ],
-          const SizedBox(height: 12),
-          Text(
-            'Your selection is saved to your ByChat profile.',
-            style: TextStyle(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontSize: 13,
-            ),
-            textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _background,
+      appBar: AppBar(
+        backgroundColor: _background,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          'Links',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w500,
           ),
+        ),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(
+            height: 1,
+            color: Color(0xFF20272B),
+          ),
+        ),
+      ),
+      body: _loading
+          ? const Center(
+        child: CircularProgressIndicator(color: _green),
+      )
+          : Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(24, 42, 24, 18),
+            child: Text(
+              'Who can see links on my profile',
+              style: TextStyle(
+                color: _muted,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ..._options.map(_buildOption),
+          if (_saving)
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: LinearProgressIndicator(
+                color: _green,
+                backgroundColor: Color(0xFF263238),
+              ),
+            ),
         ],
       ),
     );
