@@ -17,10 +17,10 @@ class _LinksScreenState extends State<LinksScreen> {
   static const Color _green = Color(0xFF20C875);
   static const Color _background = Color(0xFF0B1013);
   static const Color _muted = Color(0xFF929A9E);
+  static const Color _panel = Color(0xFF182126);
 
   CollectionReference<Map<String, dynamic>>? get _links {
     final user = FirebaseAuth.instance.currentUser;
-
     if (user == null) return null;
 
     return FirebaseFirestore.instance
@@ -83,14 +83,20 @@ class _LinksScreenState extends State<LinksScreen> {
         return item['icon'] as IconData;
       }
     }
-
     return Icons.link;
   }
 
+  void _message(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   Future<void> _openPrivacy() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
         builder: (_) => const LinksPrivacyScreen(),
       ),
     );
@@ -104,58 +110,69 @@ class _LinksScreenState extends State<LinksScreen> {
     final collection = _links;
 
     if (collection == null) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please sign in first.')),
-      );
+      _message('Please sign in first.');
       return;
     }
+
+    final platformInfo = _platforms.firstWhere(
+          (item) => item['name'] == platform,
+      orElse: () => _platforms.last,
+    );
 
     final controller = TextEditingController(
       text: initialUrl ?? '',
     );
 
     final formKey = GlobalKey<FormState>();
+
     bool saving = false;
 
     try {
       await showDialog<void>(
         context: context,
-        barrierDismissible: !saving,
+        useRootNavigator: true,
+        barrierDismissible: false,
         builder: (dialogContext) {
-          final platformInfo = _platforms.firstWhere(
-                (item) => item['name'] == platform,
-            orElse: () => _platforms.last,
-          );
-
           return StatefulBuilder(
             builder: (dialogContext, setDialogState) {
               return AlertDialog(
-                backgroundColor: const Color(0xFF182126),
+                backgroundColor: _panel,
                 title: Text(
                   documentId == null
                       ? 'Add $platform link'
                       : 'Edit $platform link',
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(
+                    color: Colors.white,
+                  ),
                 ),
                 content: Form(
                   key: formKey,
                   child: TextFormField(
                     controller: controller,
-                    autofocus: true,
+                    autofocus: false,
                     keyboardType: TextInputType.url,
-                    style: const TextStyle(color: Colors.white),
+                    textInputAction: TextInputAction.done,
+                    style: const TextStyle(
+                      color: Colors.white,
+                    ),
                     decoration: InputDecoration(
                       labelText: 'Profile URL',
                       hintText: platformInfo['hint'] as String,
-                      labelStyle: const TextStyle(color: _muted),
-                      hintStyle: const TextStyle(color: _muted),
+                      labelStyle: const TextStyle(
+                        color: _muted,
+                      ),
+                      hintStyle: const TextStyle(
+                        color: _muted,
+                      ),
                       enabledBorder: const UnderlineInputBorder(
-                        borderSide: BorderSide(color: _muted),
+                        borderSide: BorderSide(
+                          color: _muted,
+                        ),
                       ),
                       focusedBorder: const UnderlineInputBorder(
-                        borderSide: BorderSide(color: _green),
+                        borderSide: BorderSide(
+                          color: _green,
+                        ),
                       ),
                     ),
                     validator: (value) {
@@ -168,7 +185,9 @@ class _LinksScreenState extends State<LinksScreen> {
 
                       if (uri == null ||
                           !uri.hasScheme ||
-                          !['https', 'http'].contains(uri.scheme) ||
+                          !['http', 'https'].contains(
+                            uri.scheme.toLowerCase(),
+                          ) ||
                           uri.host.isEmpty) {
                         return 'Enter a valid URL starting with https://';
                       }
@@ -181,7 +200,15 @@ class _LinksScreenState extends State<LinksScreen> {
                   TextButton(
                     onPressed: saving
                         ? null
-                        : () => Navigator.of(dialogContext).pop(),
+                        : () {
+                      FocusManager.instance.primaryFocus
+                          ?.unfocus();
+
+                      Navigator.of(
+                        dialogContext,
+                        rootNavigator: true,
+                      ).pop();
+                    },
                     child: const Text('Cancel'),
                   ),
                   FilledButton(
@@ -196,6 +223,9 @@ class _LinksScreenState extends State<LinksScreen> {
                           false)) {
                         return;
                       }
+
+                      FocusManager.instance.primaryFocus
+                          ?.unfocus();
 
                       setDialogState(() {
                         saving = true;
@@ -223,15 +253,22 @@ class _LinksScreenState extends State<LinksScreen> {
 
                         if (!dialogContext.mounted) return;
 
-                        Navigator.of(dialogContext).pop();
-                      } catch (e) {
-                        if (dialogContext.mounted) {
-                          setDialogState(() {
-                            saving = false;
-                          });
-                        }
+                        Navigator.of(
+                          dialogContext,
+                          rootNavigator: true,
+                        ).pop();
 
-                        if (!mounted) return;
+                        _message(
+                          documentId == null
+                              ? 'Link added successfully.'
+                              : 'Link updated successfully.',
+                        );
+                      } catch (e) {
+                        if (!dialogContext.mounted) return;
+
+                        setDialogState(() {
+                          saving = false;
+                        });
 
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -266,19 +303,17 @@ class _LinksScreenState extends State<LinksScreen> {
 
   Future<void> _deleteLink(String documentId) async {
     try {
-      await _links?.doc(documentId).delete();
+      final collection = _links;
 
-      if (!mounted) return;
+      if (collection == null) {
+        _message('Please sign in first.');
+        return;
+      }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Link removed.')),
-      );
+      await collection.doc(documentId).delete();
+      _message('Link removed.');
     } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not delete link: $e')),
-      );
+      _message('Could not delete link: $e');
     }
   }
 
@@ -287,8 +322,9 @@ class _LinksScreenState extends State<LinksScreen> {
 
     if (uri == null ||
         !uri.hasScheme ||
-        !['https', 'http'].contains(uri.scheme) ||
+        !['http', 'https'].contains(uri.scheme.toLowerCase()) ||
         uri.host.isEmpty) {
+      _message('Please enter a valid URL.');
       return;
     }
 
@@ -298,22 +334,87 @@ class _LinksScreenState extends State<LinksScreen> {
         mode: LaunchMode.externalApplication,
       );
 
-      if (!opened && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not open this link.'),
-          ),
-        );
+      if (!opened) {
+        _message('Could not open this link.');
       }
     } catch (_) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not open this link.'),
-        ),
-      );
+      _message('Could not open this link.');
     }
+  }
+
+  // Select a platform first, then open its dialog after the
+  // bottom sheet route has completely returned.
+  Future<void> _selectAnotherLink() async {
+    final options = _platforms
+        .where(
+          (item) =>
+      item['name'] != 'Instagram' &&
+          item['name'] != 'Facebook',
+    )
+        .toList();
+
+    final String? selectedPlatform =
+    await showModalBottomSheet<String>(
+      context: context,
+      useRootNavigator: true,
+      backgroundColor: _panel,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(20),
+                child: Text(
+                  'Add another link',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              ...options.map(
+                    (item) => ListTile(
+                  leading: Icon(
+                    item['icon'] as IconData,
+                    color: _green,
+                  ),
+                  title: Text(
+                    item['name'] as String,
+                    style: const TextStyle(
+                      color: Colors.white,
+                    ),
+                  ),
+                  trailing: const Icon(
+                    Icons.add,
+                    color: _muted,
+                  ),
+                  onTap: () {
+                    Navigator.of(
+                      sheetContext,
+                      rootNavigator: true,
+                    ).pop(item['name'] as String);
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (!mounted || selectedPlatform == null) return;
+
+    // Wait until the bottom-sheet transition is complete.
+    await WidgetsBinding.instance.endOfFrame;
+
+    if (!mounted) return;
+
+    await _showLinkDialog(
+      platform: selectedPlatform,
+    );
   }
 
   Widget _platformRow(
@@ -329,7 +430,11 @@ class _LinksScreenState extends State<LinksScreen> {
         horizontal: 24,
         vertical: 5,
       ),
-      leading: Icon(icon, color: _muted, size: 31),
+      leading: Icon(
+        icon,
+        color: _muted,
+        size: 31,
+      ),
       title: Text(
         platform,
         style: const TextStyle(
@@ -351,9 +456,9 @@ class _LinksScreenState extends State<LinksScreen> {
       trailing: document == null
           ? IconButton(
         tooltip: 'Add $platform',
-        onPressed: () => _showLinkDialog(
-          platform: platform,
-        ),
+        onPressed: () {
+          _showLinkDialog(platform: platform);
+        },
         icon: const Icon(
           Icons.add,
           color: _muted,
@@ -399,74 +504,6 @@ class _LinksScreenState extends State<LinksScreen> {
     );
   }
 
-  // FIX: Close the bottom sheet first, then open the dialog.
-  Future<void> _showAddAnotherLinkSheet() async {
-    final otherPlatforms = _platforms
-        .where(
-          (item) =>
-      item['name'] != 'Instagram' &&
-          item['name'] != 'Facebook',
-    )
-        .toList();
-
-    final selectedPlatform = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: const Color(0xFF182126),
-      isScrollControlled: true,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              const Padding(
-                padding: EdgeInsets.all(20),
-                child: Text(
-                  'Add another link',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              ...otherPlatforms.map((item) {
-                return ListTile(
-                  leading: Icon(
-                    item['icon'] as IconData,
-                    color: _green,
-                  ),
-                  title: Text(
-                    item['name'] as String,
-                    style: const TextStyle(
-                      color: Colors.white,
-                    ),
-                  ),
-                  trailing: const Icon(
-                    Icons.add,
-                    color: _muted,
-                  ),
-                  onTap: () {
-                    // Return the selected platform to the caller.
-                    // Do not open a dialog from inside the sheet.
-                    Navigator.of(sheetContext).pop(
-                      item['name'] as String,
-                    );
-                  },
-                );
-              }),
-            ],
-          ),
-        );
-      },
-    );
-
-    // Wait for the bottom sheet to finish closing.
-    if (!mounted || selectedPlatform == null) return;
-
-    // Now open the dialog using the screen's context.
-    await _showLinkDialog(platform: selectedPlatform);
-  }
-
   @override
   Widget build(BuildContext context) {
     final collection = _links;
@@ -507,7 +544,8 @@ class _LinksScreenState extends State<LinksScreen> {
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: Text(
-                  'Could not load links. Check your Firestore rules and connection.',
+                  'Could not load links. Check your Firestore '
+                      'rules and connection.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.white),
                 ),
@@ -543,7 +581,8 @@ class _LinksScreenState extends State<LinksScreen> {
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 32),
                 child: Text(
-                  'Adding links to your ByChat profile helps your contacts easily visit your other profiles.',
+                  'Adding links to your ByChat profile helps your '
+                      'contacts easily visit your other profiles.',
                   style: TextStyle(
                     color: _muted,
                     fontSize: 17,
@@ -629,7 +668,7 @@ class _LinksScreenState extends State<LinksScreen> {
                   horizontal: 24,
                 ),
                 child: OutlinedButton.icon(
-                  onPressed: _showAddAnotherLinkSheet,
+                  onPressed: _selectAnotherLink,
                   icon: const Icon(Icons.add_link),
                   label: const Text('Add another link'),
                   style: OutlinedButton.styleFrom(
