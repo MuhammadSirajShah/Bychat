@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../Call Screens/calls_screen.dart';
 import '../Chat Screen/chat_screen.dart';
 import '../Profile Screen/profile_screen.dart';
+import '../Search Screen/username_search_screen.dart';
 import '../Status Screen/status_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -144,9 +145,10 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: _selectedIndex == 0
           ? FloatingActionButton(
         onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('New chat feature will be added next.'),
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const UsernameSearchScreen(),
             ),
           );
         },

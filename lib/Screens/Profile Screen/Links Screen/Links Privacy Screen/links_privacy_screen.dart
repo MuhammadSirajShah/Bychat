@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import 'Contacts Test Screen/contacts_test_screen.dart';
+
 class LinksPrivacyScreen extends StatefulWidget {
   const LinksPrivacyScreen({super.key});
 
@@ -256,11 +258,27 @@ class _LinksPrivacyScreenState extends State<LinksPrivacyScreen> {
           ),
           ..._options.map(_buildOption),
           if (_saving)
-            const Padding(
-              padding: EdgeInsets.all(20),
-              child: LinearProgressIndicator(
-                color: _green,
-                backgroundColor: Color(0xFF263238),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ContactsTestScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.contacts_outlined),
+                  label: const Text('Test Mobile Contacts'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _green,
+                    side: const BorderSide(color: _green),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
               ),
             ),
         ],
