@@ -3,12 +3,14 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 
 class UsernameSearchScreen extends StatefulWidget {
   const UsernameSearchScreen({super.key});
 
   @override
-  State<UsernameSearchScreen> createState() => _UsernameSearchScreenState();
+  State<UsernameSearchScreen> createState() =>
+      _UsernameSearchScreenState();
 }
 
 class _UsernameSearchScreenState extends State<UsernameSearchScreen> {
@@ -20,21 +22,32 @@ class _UsernameSearchScreenState extends State<UsernameSearchScreen> {
   final TextEditingController _controller = TextEditingController();
 
   Timer? _debounce;
+
   bool _loading = false;
+  bool _contactsLoading = false;
+  bool _showContacts = false;
+
   String _query = '';
   String? _error;
+  String? _contactsMessage;
+
   Map<String, dynamic>? _result;
+  List<Contact> _contacts = [];
 
   void _onSearchChanged(String value) {
     _debounce?.cancel();
 
-    final username = value.trim().replaceFirst(RegExp(r'^@'), '').toLowerCase();
+    final username = value
+        .trim()
+        .replaceFirst(RegExp(r'^@'), '')
+        .toLowerCase();
 
     setState(() {
       _query = username;
       _result = null;
       _error = null;
       _loading = false;
+      _showContacts = false;
     });
 
     if (username.isEmpty) return;
@@ -75,19 +88,79 @@ class _UsernameSearchScreenState extends State<UsernameSearchScreen> {
         return;
       }
 
-      final data = snapshot.data();
-
       setState(() {
-        _result = data;
+        _result = snapshot.data();
         _loading = false;
       });
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
 
       setState(() {
         _result = null;
         _error = 'Search failed. Please check your connection.';
         _loading = false;
+      });
+    }
+  }
+
+  Future<void> _loadContacts() async {
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      _showContacts = true;
+      _contactsLoading = true;
+      _contactsMessage = null;
+      _error = null;
+      _result = null;
+    });
+
+    try {
+      final permission =
+      await FlutterContacts.permissions.request(PermissionType.read);
+
+      if (permission != PermissionStatus.granted) {
+        if (!mounted) return;
+
+        setState(() {
+          _contactsLoading = false;
+          _contactsMessage =
+          'Contacts permission nahi mili. Phone settings mein '
+              'ByChat ko Contacts permission dein.';
+        });
+        return;
+      }
+
+      final contacts = await FlutterContacts.getAll(
+        properties: {
+          ContactProperty.name,
+          ContactProperty.phone,
+        },
+      );
+
+      if (!mounted) return;
+
+      contacts.sort(
+            (a, b) => (a.displayName ?? '').toLowerCase().compareTo(
+          (b.displayName ?? '').toLowerCase(),
+        ),
+      );
+
+      setState(() {
+        _contacts = contacts;
+        _contactsLoading = false;
+        _contactsMessage = contacts.isEmpty
+            ? 'Aapke phone mein koi contact nahi mila.'
+            : '${contacts.length} phone contacts load hue. '
+            'Registered ByChat users ki matching abhi connect '
+            'nahi hui hai.';
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _contactsLoading = false;
+        _contactsMessage =
+        'Contacts load nahi hue. Permission aur phone settings check karein.';
       });
     }
   }
@@ -110,15 +183,14 @@ class _UsernameSearchScreenState extends State<UsernameSearchScreen> {
         backgroundColor: _background,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Text('Search ByChat Users'),
+        title: const Text('New Chat'),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Container(
                 decoration: BoxDecoration(
                   color: _panel,
                   borderRadius: BorderRadius.circular(16),
@@ -131,17 +203,14 @@ class _UsernameSearchScreenState extends State<UsernameSearchScreen> {
                   textCapitalization: TextCapitalization.none,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    hintText: 'Search username...',
+                    hintText: 'Search username, e.g. @siraj221',
                     hintStyle: const TextStyle(color: _muted),
                     prefixIcon: const Icon(
                       Icons.search,
                       color: _muted,
                     ),
                     suffixIcon: IconButton(
-                      icon: const Icon(
-                        Icons.clear,
-                        color: _muted,
-                      ),
+                      icon: const Icon(Icons.clear, color: _muted),
                       onPressed: () {
                         _controller.clear();
                         _onSearchChanged('');
@@ -154,63 +223,164 @@ class _UsernameSearchScreenState extends State<UsernameSearchScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Card(
+                color: _panel,
+                elevation: 0,
+                child: ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: _green,
+                    child: Icon(
+                      Icons.contacts,
+                      color: Colors.black,
+                    ),
+                  ),
+                  title: const Text(
+                    'Find from contacts',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: const Text(
+                    'Phone contacts load karein',
+                    style: TextStyle(color: _muted),
+                  ),
+                  trailing: _contactsLoading
+                      ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: _green,
+                    ),
+                  )
+                      : const Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: _muted,
+                  ),
+                  onTap: _contactsLoading ? null : _loadContacts,
+                ),
+              ),
+            ),
+
+            if (!_showContacts) ...[
               if (_loading)
-                const Center(
+                const Padding(
+                  padding: EdgeInsets.all(24),
                   child: CircularProgressIndicator(color: _green),
                 )
               else if (_error != null)
-                Text(
-                  _error!,
-                  style: const TextStyle(color: _muted, fontSize: 15),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: _muted, fontSize: 15),
+                  ),
                 )
               else if (username != null && uid != null)
-                  Container(
+                  Padding(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
+                    child: Card(
                       color: _panel,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      children: [
-                        const CircleAvatar(
+                      elevation: 0,
+                      child: ListTile(
+                        leading: const CircleAvatar(
                           backgroundColor: _green,
-                          child: Icon(
-                            Icons.person,
-                            color: Colors.black,
+                          child: Icon(Icons.person, color: Colors.black),
+                        ),
+                        title: Text(
+                          '@$username',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '@$username',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              const Text(
-                                'ByChat user',
-                                style: TextStyle(color: _muted),
-                              ),
-                            ],
-                          ),
+                        subtitle: const Text(
+                          'ByChat user',
+                          style: TextStyle(color: _muted),
                         ),
-                      ],
+                      ),
                     ),
                   )
                 else
-                  const Text(
-                    'Enter a username to find a ByChat account.',
-                    style: TextStyle(color: _muted, fontSize: 15),
+                  const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Text(
+                      'Username search karein ya apne contacts kholein.',
+                      style: TextStyle(color: _muted, fontSize: 15),
+                    ),
                   ),
+            ] else ...[
+              if (_contactsMessage != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: Text(
+                    _contactsMessage!,
+                    style: const TextStyle(
+                      color: _muted,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              Expanded(
+                child: _contactsLoading
+                    ? const Center(
+                  child: CircularProgressIndicator(color: _green),
+                )
+                    : _contacts.isEmpty
+                    ? const Center(
+                  child: Text(
+                    'Contacts yahan dikhaye jayenge.',
+                    style: TextStyle(color: _muted),
+                  ),
+                )
+                    : ListView.separated(
+                  itemCount: _contacts.length,
+                  separatorBuilder: (_, __) => const Divider(
+                    height: 1,
+                    indent: 72,
+                    color: _panel,
+                  ),
+                  itemBuilder: (context, index) {
+                    final contact = _contacts[index];
+
+                    final phoneNumbers = contact.phones
+                        .map((phone) => phone.number.trim())
+                        .where((number) => number.isNotEmpty)
+                        .toSet()
+                        .toList();
+
+                    return ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: _panel,
+                        child: Icon(
+                          Icons.person,
+                          color: _green,
+                        ),
+                      ),
+                      title: Text(
+                        contact.displayName?.isNotEmpty == true
+                            ? contact.displayName!
+                            : 'Unknown contact',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      subtitle: Text(
+                        phoneNumbers.isEmpty
+                            ? 'No phone number'
+                            : phoneNumbers.join(', '),
+                        style: const TextStyle(color: _muted),
+                      ),
+                    );
+                  },
+                ),
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );
