@@ -2,8 +2,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
-import 'Contacts Test Screen/contacts_test_screen.dart';
+import 'contacts_test_screen.dart';
 
 class LinksPrivacyScreen extends StatefulWidget {
   const LinksPrivacyScreen({super.key});

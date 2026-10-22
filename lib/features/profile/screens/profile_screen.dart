@@ -6,10 +6,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'About Screen/about_screen.dart';
-import 'Links Screen/links_screen.dart';
-import 'Name Screen/name_screen.dart';
-import 'User Name Screen/username_screen.dart';
+import 'about_screen.dart';
+import 'links/links_screen.dart';
+import 'name_screen.dart';
+import 'username_screen.dart';
 
 
 class ProfileScreen extends StatefulWidget {
