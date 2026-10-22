@@ -2,7 +2,7 @@ import 'package:bychat/Screens/Setting%20Screen/setting_screen.dart';
 import 'package:bychat/features/calls/screens/calls_screen.dart';
 import 'package:bychat/features/chats/screens/chat_screen.dart';
 import 'package:bychat/features/profile/screens/profile_screen.dart';
-import 'package:bychat/Screens/Search%20Screen/username_search_screen.dart';
+import 'package:bychat/features/search/screens/username_search_screen.dart';
 import 'package:bychat/features/status/screens/status_screen.dart';
 import 'package:flutter/material.dart';
 
