@@ -1,6 +1,6 @@
 import 'package:bychat/Screens/Setting%20Screen/setting_screen.dart';
 import 'package:bychat/Screens/Call%20Screens/calls_screen.dart';
-import 'package:bychat/Screens/Chat%20Screen/chat_screen.dart';
+import 'package:bychat/features/chats/screens/chat_screen.dart';
 import 'package:bychat/Screens/Profile%20Screen/profile_screen.dart';
 import 'package:bychat/Screens/Search%20Screen/username_search_screen.dart';
 import 'package:bychat/Screens/Status%20Screen/status_screen.dart';
