@@ -1,7 +1,8 @@
 
+import 'package:bychat/features/auth/screens/phone_login_screen.dart';
 import 'package:flutter/material.dart';
 
-import '../Auth Screen/phone_login_screen.dart';
+
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
