@@ -1,7 +1,6 @@
 
 import 'package:flutter/material.dart';
-
-import '../../app.dart';
+import 'package:bychat/app.dart';
 
 class SettingScreen extends StatelessWidget {
   const SettingScreen({super.key});
