@@ -1,12 +1,13 @@
-
+﻿
 import 'dart:io';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:bychat/features/auth/services/profile_setup_service.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
 
 import 'package:bychat/features/home/screens/home_screen.dart';
 
@@ -85,34 +86,11 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
     setState(() => _isSaving = true);
 
     try {
-      // Save the profile to Firestore using the verified Firebase UID.
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .set({
-        'name': name,
-        'phoneNumber': user.phoneNumber ?? '',
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      // Keep local preferences for the current device.
-      final prefs = await SharedPreferences.getInstance();
-
-      await prefs.setString('bychat_profile_name', name);
-      await prefs.setString(
-        'bychat_profile_phone',
-        user.phoneNumber ?? '',
+      await ProfileSetupService().saveProfile(
+        user: user,
+        name: name,
+        profileImagePath: _profileImage?.path,
       );
-
-      if (_profileImage != null) {
-        await prefs.setString(
-          'bychat_profile_image_path',
-          _profileImage!.path,
-        );
-      }
-
-      await prefs.setBool('permission_screen_completed', true);
-      await prefs.setBool('profile_setup_completed', true);
 
       if (!mounted) return;
 
@@ -409,3 +387,4 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
     );
   }
 }
+
