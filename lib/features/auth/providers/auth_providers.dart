@@ -7,8 +7,7 @@ final authStateProvider = StreamProvider<User?>((ref) {
   return FirebaseAuth.instance.authStateChanges();
 });
 
-final cloudProfileProvider =
-    FutureProvider.family<bool, String>((ref, uid) async {
+final cloudProfileProvider = FutureProvider.family<bool, String>((ref, uid) async {
   final document = await FirebaseFirestore.instance
       .collection('users')
       .doc(uid)
@@ -25,8 +24,7 @@ final cloudProfileProvider =
       (data['name'] as String).trim().isNotEmpty;
 });
 
-final setupStatusProvider =
-    FutureProvider<Map<String, bool>>((ref) async {
+final setupStatusProvider = FutureProvider<Map<String, bool>>((ref) async {
   final prefs = await SharedPreferences.getInstance();
 
   return {

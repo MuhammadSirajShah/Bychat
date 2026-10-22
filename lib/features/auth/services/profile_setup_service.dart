@@ -3,11 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileSetupService {
-  Future<void> saveProfile({
-    required User user,
-    required String name,
-    String? profileImagePath,
-  }) async {
+  Future<void> saveProfile({required User user, required String name,String? profileImagePath,}) async {
     await FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)
