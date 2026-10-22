@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../Screens/home_screen/home_screen.dart';
+import 'package:bychat/features/home/screens/home_screen.dart';
 
 
 class ProfileInfoScreen extends StatefulWidget {

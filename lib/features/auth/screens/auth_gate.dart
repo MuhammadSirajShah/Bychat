@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'profile_info_screen.dart';
 import 'welcome_screen.dart';
-import '../../../Screens/home_screen/home_screen.dart';
+import 'package:bychat/features/home/screens/home_screen.dart';
 import 'permission_screen.dart';
 
 final authStateProvider = StreamProvider<User?>((ref) {
