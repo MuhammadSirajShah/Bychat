@@ -1,8 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
-
-import '../../../Screens/Profile Info Screen/profile_info_screen.dart';
+import 'profile_info_screen.dart';
 
 
 class PermissionScreen extends StatefulWidget {

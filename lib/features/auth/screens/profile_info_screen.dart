@@ -8,7 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../home_screen/home_screen.dart';
+import '../../../Screens/home_screen/home_screen.dart';
+
 
 class ProfileInfoScreen extends StatefulWidget {
   const ProfileInfoScreen({super.key});

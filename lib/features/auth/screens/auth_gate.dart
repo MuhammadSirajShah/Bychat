@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../../Screens/Profile Info Screen/profile_info_screen.dart';
+import 'profile_info_screen.dart';
 import 'welcome_screen.dart';
 import '../../../Screens/home_screen/home_screen.dart';
 import 'permission_screen.dart';
