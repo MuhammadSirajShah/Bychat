@@ -1,12 +1,13 @@
-
+﻿
 import 'package:flutter/material.dart';
-import 'package:bychat/app.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:bychat/features/settings/providers/theme_provider.dart';
 
-class SettingScreen extends StatelessWidget {
+class SettingScreen extends ConsumerWidget {
   const SettingScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -130,11 +131,11 @@ class SettingScreen extends StatelessWidget {
                                 title: const Text('Light mode'),
                                 secondary: const Icon(Icons.light_mode_outlined),
                                 value: ThemeMode.light,
-                                groupValue: themeController.themeMode,
+                                groupValue: ref.read(themeModeProvider),
                                 onChanged: (mode) {
                                   if (mode == null) return;
 
-                                  themeController.setThemeMode(mode);
+                                  ref.read(themeModeProvider.notifier).setThemeMode(mode);
                                   setSheetState(() {});
                                 },
                               ),
@@ -142,11 +143,11 @@ class SettingScreen extends StatelessWidget {
                                 title: const Text('Dark mode'),
                                 secondary: const Icon(Icons.dark_mode_outlined),
                                 value: ThemeMode.dark,
-                                groupValue: themeController.themeMode,
+                                groupValue: ref.read(themeModeProvider),
                                 onChanged: (mode) {
                                   if (mode == null) return;
 
-                                  themeController.setThemeMode(mode);
+                                  ref.read(themeModeProvider.notifier).setThemeMode(mode);
                                   setSheetState(() {});
                                 },
                               ),
@@ -154,11 +155,11 @@ class SettingScreen extends StatelessWidget {
                                 title: const Text('System default'),
                                 secondary: const Icon(Icons.settings_brightness),
                                 value: ThemeMode.system,
-                                groupValue: themeController.themeMode,
+                                groupValue: ref.read(themeModeProvider),
                                 onChanged: (mode) {
                                   if (mode == null) return;
 
-                                  themeController.setThemeMode(mode);
+                                  ref.read(themeModeProvider.notifier).setThemeMode(mode);
                                   setSheetState(() {});
                                 },
                               ),
@@ -256,3 +257,4 @@ class SettingScreen extends StatelessWidget {
     );
   }
 }
+
