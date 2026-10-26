@@ -52,7 +52,7 @@ class ContactService {
     final seenPhones = <String>{};
 
     for (final contact in phoneContacts) {
-      final contactName = contact.displayName.trim();
+      final contactName = contact.displayName?.trim() ?? '';
       if (contact.phones.isEmpty) continue;
 
       for (final phone in contact.phones) {

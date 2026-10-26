@@ -8,7 +8,6 @@ class NewChatScreen extends ConsumerWidget {
   const NewChatScreen({super.key});
 
   static const Color _background = Color(0xFF101418);
-  static const Color _panel = Color(0xFF20282B);
   static const Color _teal = Color(0xFF009688);
   static const Color _muted = Color(0xFF9AA4AA);
 
