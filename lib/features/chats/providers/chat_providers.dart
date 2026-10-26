@@ -8,6 +8,17 @@ final chatServiceProvider = Provider<ChatService>((ref) {
   return ChatService();
 });
 
+
+final chatConversationsProvider =
+StreamProvider.family<List<Map<String, dynamic>>, String>(
+      (ref, uid) {
+    final chatService = ref.watch(chatServiceProvider);
+    return chatService.watchConversations(uid);
+  },
+);
+
+
+
 /// Streams messages for a specific chat.
 final chatMessagesProvider =
 StreamProvider.family<List<ChatMessageModel>, String>(

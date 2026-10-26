@@ -1,63 +1,26 @@
+
 import 'package:bychat/features/settings/screens/setting_screen.dart';
 import 'package:bychat/features/calls/screens/calls_screen.dart';
 import 'package:bychat/features/chats/screens/chat_screen.dart';
+import 'package:bychat/features/chats/providers/chat_providers.dart';
+import 'package:bychat/features/chats/utils/chat_id_helper.dart';
 import 'package:bychat/features/profile/screens/profile_screen.dart';
 import 'package:bychat/features/search/screens/username_search_screen.dart';
 import 'package:bychat/features/status/screens/status_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _selectedIndex = 0;
-
-  final List<Map<String, dynamic>> _chats = [
-    {
-      'name': 'Ali Khan',
-      'message': 'Assalam o Alaikum!',
-      'time': '10:30 AM',
-      'unread': 2,
-      'color': Colors.blue,
-      'icon': Icons.person,
-    },
-    {
-      'name': 'Ahmed',
-      'message': 'How are you?',
-      'time': '09:45 AM',
-      'unread': 1,
-      'color': Colors.orange,
-      'icon': Icons.person,
-    },
-    {
-      'name': 'Family Group',
-      'message': 'See you tomorrow.',
-      'time': 'Yesterday',
-      'unread': 0,
-      'color': Colors.green,
-      'icon': Icons.groups,
-    },
-    {
-      'name': 'Usman',
-      'message': 'Photo',
-      'time': 'Yesterday',
-      'unread': 0,
-      'color': Colors.purple,
-      'icon': Icons.person,
-    },
-    {
-      'name': 'Hassan',
-      'message': 'Thank you!',
-      'time': 'Monday',
-      'unread': 0,
-      'color': Colors.teal,
-      'icon': Icons.person,
-    },
-  ];
 
   final List<String> _titles = [
     'ByChat',
@@ -80,14 +43,9 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           if (_selectedIndex == 0) ...[
             IconButton(
-              onPressed: () {
-                showSearch(
-                  context: context,
-                  delegate: _ChatSearchDelegate(_chats),
-                );
-              },
-              icon: const Icon(Icons.search),
               tooltip: 'Search chats',
+              icon: const Icon(Icons.search),
+              onPressed: _openChatSearch,
             ),
             IconButton(
               tooltip: 'Profile',
@@ -96,18 +54,23 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const ProfileScreen(),
+                    builder: (_) => const ProfileScreen(),
                   ),
                 );
               },
             ),
             PopupMenuButton<String>(
               onSelected: (value) {
+                if (value == 'Settings') {
+                  setState(() => _selectedIndex = 3);
+                  return;
+                }
+
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('$value selected')),
+                  SnackBar(content: Text('$value is not available yet.')),
                 );
               },
-              itemBuilder: (context) => const [
+              itemBuilder: (_) => const [
                 PopupMenuItem(
                   value: 'New group',
                   child: Text('New group'),
@@ -132,21 +95,13 @@ class _HomeScreenState extends State<HomeScreen> {
           : _selectedIndex == 2
           ? const CallsScreen()
           : const SettingScreen(),
-
-      // Center(
-      //   child: Text(
-      //     '${_titles[_selectedIndex]} screen will be connected next.',
-      //     textAlign: TextAlign.center,
-      //     style: const TextStyle(fontSize: 16),
-      //   ),
-      // ),
       floatingActionButton: _selectedIndex == 0
           ? FloatingActionButton(
         onPressed: () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const UsernameSearchScreen(),
+              builder: (_) => const UsernameSearchScreen(),
             ),
           );
         },
@@ -158,9 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
+          setState(() => _selectedIndex = index);
         },
         destinations: const [
           NavigationDestination(
@@ -189,20 +142,204 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildChatsList() {
-    if (_chats.isEmpty) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
       return const Center(
-        child: Text('No chats yet. Start a new conversation!'),
+        child: Text('Please sign in to view your chats.'),
       );
     }
 
-    return ListView.separated(
-      itemCount: _chats.length,
-      separatorBuilder: (context, index) => const Divider(
-        height: 1,
-        indent: 82,
+    final conversationsAsync = ref.watch(
+      chatConversationsProvider(currentUser.uid),
+    );
+
+    return conversationsAsync.when(
+      loading: () => const Center(
+        child: CircularProgressIndicator(),
       ),
-      itemBuilder: (context, index) {
-        final chat = _chats[index];
+      error: (error, stackTrace) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.cloud_off_outlined,
+                size: 48,
+                color: Colors.grey,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Could not load your conversations.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: () {
+                  ref.invalidate(
+                    chatConversationsProvider(currentUser.uid),
+                  );
+                },
+                child: const Text('Try again'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      data: (conversations) {
+        if (conversations.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.forum_outlined,
+                    size: 64,
+                    color: Colors.grey.shade400,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No chats yet.',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Start a new conversation!',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 18),
+                  FilledButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const UsernameSearchScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.chat),
+                    label: const Text('New chat'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF6558F5),
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return ListView.separated(
+          itemCount: conversations.length,
+          separatorBuilder: (_, __) => const Divider(
+            height: 1,
+            indent: 82,
+          ),
+          itemBuilder: (context, index) {
+            final chat = conversations[index];
+
+            return _ConversationTile(
+              chat: chat,
+              currentUid: currentUser.uid,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _openChatSearch() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) return;
+
+    final conversationsAsync = ref.read(
+      chatConversationsProvider(currentUser.uid),
+    );
+
+    conversationsAsync.when(
+      loading: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Loading chats...')),
+        );
+      },
+      error: (_, __) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not load chats.')),
+        );
+      },
+      data: (conversations) {
+        showSearch(
+          context: context,
+          delegate: _ConversationSearchDelegate(
+            conversations: conversations,
+            currentUid: currentUser.uid,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ConversationTile extends StatelessWidget {
+  const _ConversationTile({
+    required this.chat,
+    required this.currentUid,
+  });
+
+  final Map<String, dynamic> chat;
+  final String currentUid;
+
+  @override
+  Widget build(BuildContext context) {
+    final participants = List<String>.from(
+      (chat['participants'] as List?)?.whereType<String>() ?? const [],
+    );
+
+    final otherUids = participants
+        .where((uid) => uid != currentUid)
+        .toList();
+
+    if (otherUids.isEmpty) {
+      return const ListTile(
+        leading: CircleAvatar(
+          child: Icon(Icons.person_outline),
+        ),
+        title: Text('Conversation'),
+        subtitle: Text('Participant information unavailable'),
+      );
+    }
+
+    final receiverUid = otherUids.first;
+    final chatId = chat['chatId'] as String? ?? '';
+    final lastMessage = chat['lastMessage'] as String? ?? '';
+    final profileFuture = FirebaseFirestore.instance
+        .collection('users')
+        .doc(receiverUid)
+        .get();
+
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future: profileFuture,
+      builder: (context, snapshot) {
+        final userData = snapshot.data?.data() ?? {};
+
+        final storedName = userData['name'] as String?;
+        final username = userData['username'] as String?;
+
+        final name = storedName != null && storedName.trim().isNotEmpty
+            ? storedName.trim()
+            : username != null && username.trim().isNotEmpty
+            ? username.trim()
+            : 'ByChat user';
+
+        final photoUrl = userData['photoUrl'] as String?;
 
         return ListTile(
           contentPadding: const EdgeInsets.symmetric(
@@ -211,58 +348,52 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           leading: CircleAvatar(
             radius: 27,
-            backgroundColor: (chat['color'] as Color).withValues(alpha: 0.15),
-            child: Icon(
-              chat['icon'] as IconData,
-              color: chat['color'] as Color,
+            backgroundColor: const Color(0xFF6558F5).withValues(alpha: 0.12),
+            backgroundImage: photoUrl != null && photoUrl.trim().isNotEmpty
+                ? NetworkImage(photoUrl)
+                : null,
+            child: photoUrl == null || photoUrl.trim().isEmpty
+                ? const Icon(
+              Icons.person,
+              color: Color(0xFF6558F5),
               size: 28,
-            ),
+            )
+                : null,
           ),
           title: Text(
-            chat['name'] as String,
+            name,
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 5),
             child: Text(
-              chat['message'] as String,
+              lastMessage.isEmpty ? 'Start a conversation' : lastMessage,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          trailing: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                chat['time'] as String,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: (chat['unread'] as int) > 0
-                      ? const Color(0xFF6558F5)
-                      : Colors.grey,
-                ),
-              ),
-              const SizedBox(height: 6),
-              if ((chat['unread'] as int) > 0)
-                CircleAvatar(
-                  radius: 10,
-                  backgroundColor: const Color(0xFF6558F5),
-                  child: Text(
-                    '${chat['unread']}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-            ],
+          trailing: const Icon(
+            Icons.chevron_right,
+            color: Colors.grey,
           ),
           onTap: () {
-            Navigator.push(context, MaterialPageRoute(
-              builder: (context) => ChatScreen(
-                contactName: chat['name'] as String,
-              ),
+            if (chatId.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('This conversation has an invalid ID.'),
+                ),
+              );
+              return;
+            }
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ChatScreen(
+                  contactName: name,
+                  receiverUid: receiverUid,
+                  chatId: chatId,
+                ),
               ),
             );
           },
@@ -272,10 +403,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _ChatSearchDelegate extends SearchDelegate<String> {
-  _ChatSearchDelegate(this.chats);
+class _ConversationSearchDelegate extends SearchDelegate<String> {
+  _ConversationSearchDelegate({
+    required this.conversations,
+    required this.currentUid,
+  });
 
-  final List<Map<String, dynamic>> chats;
+  final List<Map<String, dynamic>> conversations;
+  final String currentUid;
 
   @override
   String get searchFieldLabel => 'Search chats';
@@ -286,6 +421,7 @@ class _ChatSearchDelegate extends SearchDelegate<String> {
       IconButton(
         onPressed: () => query = '',
         icon: const Icon(Icons.clear),
+        tooltip: 'Clear search',
       ),
     ];
   }
@@ -299,39 +435,44 @@ class _ChatSearchDelegate extends SearchDelegate<String> {
   }
 
   @override
-  Widget buildResults(BuildContext context) => _buildResults();
+  Widget buildResults(BuildContext context) => _buildResults(context);
 
   @override
-  Widget buildSuggestions(BuildContext context) => _buildResults();
+  Widget buildSuggestions(BuildContext context) => _buildResults(context);
 
-  Widget _buildResults() {
-    final results = chats.where((chat) {
-      return (chat['name'] as String)
-          .toLowerCase()
-          .contains(query.toLowerCase()) ||
-          (chat['message'] as String)
-              .toLowerCase()
-              .contains(query.toLowerCase());
+  Widget _buildResults(BuildContext context) {
+    final filtered = conversations.where((chat) {
+      final participants = List<String>.from(
+        (chat['participants'] as List?)?.whereType<String>() ?? const [],
+      );
+
+      final otherUids = participants
+          .where((uid) => uid != currentUid)
+          .toList();
+
+      if (otherUids.isEmpty) return false;
+
+      final receiverUid = otherUids.first;
+      final lastMessage = (chat['lastMessage'] as String? ?? '').toLowerCase();
+
+      // Search by message or UID; names are loaded asynchronously in the tile.
+      return lastMessage.contains(query.toLowerCase()) ||
+          receiverUid.toLowerCase().contains(query.toLowerCase()) ||
+          query.trim().isEmpty;
     }).toList();
 
-    if (results.isEmpty) {
-      return const Center(child: Text('No chats found'));
+    if (filtered.isEmpty) {
+      return const Center(child: Text('No matching conversations found.'));
     }
 
     return ListView.builder(
-      itemCount: results.length,
+      itemCount: filtered.length,
       itemBuilder: (context, index) {
-        final chat = results[index];
-
-        return ListTile(
-          leading: CircleAvatar(
-            child: Icon(chat['icon'] as IconData),
-          ),
-          title: Text(chat['name'] as String),
-          subtitle: Text(chat['message'] as String),
+        return _ConversationTile(
+          chat: filtered[index],
+          currentUid: currentUid,
         );
       },
     );
   }
 }
-

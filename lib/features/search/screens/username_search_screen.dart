@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:bychat/features/profile/screens/public_profile_screen.dart';
 
 class UsernameSearchScreen extends StatefulWidget {
   const UsernameSearchScreen({super.key});
@@ -375,6 +376,17 @@ class _UsernameSearchScreenState extends State<UsernameSearchScreen> {
                             : phoneNumbers.join(', '),
                         style: const TextStyle(color: _muted),
                       ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PublicProfileScreen(
+                              uid: uid!,
+                              username: username!,
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
