@@ -218,6 +218,7 @@ class _UsernameSearchScreenState extends State<UsernameSearchScreen> {
 
       if (currentUser == null) {
         if (!mounted) return;
+
         setState(() {
           _contactsMessage = 'Please sign in to find ByChat contacts.';
         });
@@ -244,19 +245,18 @@ class _UsernameSearchScreenState extends State<UsernameSearchScreen> {
         }
       }
 
-      final matches = <String, Map<String, dynamic>>{};
-      var checkedNumbers = 0;
+      var matchCount = 0;
 
       for (final contact in contacts) {
         for (final phone in contact.phones) {
           final normalized = _normalizePhoneNumber(phone.number);
 
           if (normalized.isEmpty) continue;
-          checkedNumbers++;
 
           final user = registeredUsers[normalized];
+
           if (user != null) {
-            matches[contact.id] = user;
+            matchCount++;
             break;
           }
         }
@@ -265,10 +265,10 @@ class _UsernameSearchScreenState extends State<UsernameSearchScreen> {
       if (!mounted) return;
 
       setState(() {
-        _contactsMessage = matches.isEmpty
+        _contactsMessage = matchCount == 0
             ? 'Koi matching ByChat account nahi mila. Phone numbers '
             'aur profile numbers ka format check karein.'
-            : '${matches.length} registered ByChat contact(s) mil gaye.';
+            : '$matchCount registered ByChat contact(s) mil gaye.';
       });
     } catch (error) {
       if (!mounted) return;
@@ -279,6 +279,8 @@ class _UsernameSearchScreenState extends State<UsernameSearchScreen> {
       });
     }
   }
+
+
 
   Future<void> _openContact(Contact contact) async {
     final currentUser = FirebaseAuth.instance.currentUser;
