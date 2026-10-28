@@ -377,12 +377,10 @@ class _UsernameSearchScreenState extends State<UsernameSearchScreen> {
                         style: const TextStyle(color: _muted),
                       ),
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => PublicProfileScreen(
-                              uid: uid!,
-                              username: username!,
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Is contact ka ByChat account check karna abhi baqi hai.',
                             ),
                           ),
                         );

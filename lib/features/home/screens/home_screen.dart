@@ -3,7 +3,6 @@ import 'package:bychat/features/settings/screens/setting_screen.dart';
 import 'package:bychat/features/calls/screens/calls_screen.dart';
 import 'package:bychat/features/chats/screens/chat_screen.dart';
 import 'package:bychat/features/chats/providers/chat_providers.dart';
-import 'package:bychat/features/chats/utils/chat_id_helper.dart';
 import 'package:bychat/features/profile/screens/profile_screen.dart';
 import 'package:bychat/features/search/screens/username_search_screen.dart';
 import 'package:bychat/features/status/screens/status_screen.dart';
