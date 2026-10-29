@@ -75,13 +75,22 @@ class ChatService {
       throw ArgumentError('A user cannot message themselves.');
     }
 
-    final expectedChatId = [cleanSenderId, cleanReceiverId]..sort();
-    if (cleanChatId != '${expectedChatId[0]}_${expectedChatId[1]}') {
+    final sortedUids = [cleanSenderId, cleanReceiverId]..sort();
+    if (cleanChatId != '${sortedUids[0]}_${sortedUids[1]}') {
       throw ArgumentError('Chat ID does not match the participants.');
     }
 
     final chatDocument = _firestore.collection('chats').doc(cleanChatId);
     final messageDocument = _messagesCollection(cleanChatId).doc();
+
+    final message = ChatMessageModel(
+      id: messageDocument.id,
+      chatId: cleanChatId,
+      senderId: cleanSenderId,
+      receiverId: cleanReceiverId,
+      text: messageText,
+      createdAt: DateTime.now().toUtc(),
+    );
 
     await _firestore.runTransaction((transaction) async {
       final chatSnapshot = await transaction.get(chatDocument);
@@ -91,9 +100,9 @@ class ChatService {
         final participants =
         List<String>.from(data['participants'] ?? const <String>[]);
 
-        if (!participants.contains(cleanSenderId) ||
-            !participants.contains(cleanReceiverId) ||
-            participants.length != 2) {
+        if (participants.length != 2 ||
+            !participants.contains(cleanSenderId) ||
+            !participants.contains(cleanReceiverId)) {
           throw StateError('Chat participants do not match.');
         }
 
@@ -104,23 +113,17 @@ class ChatService {
         });
       } else {
         transaction.set(chatDocument, {
-          'participants': [cleanSenderId, cleanReceiverId]..sort(),
+          'participants': sortedUids,
           'lastMessage': messageText,
           'lastMessageSenderId': cleanSenderId,
           'updatedAt': FieldValue.serverTimestamp(),
         });
       }
 
-      final message = ChatMessageModel(
-        id: messageDocument.id,
-        chatId: cleanChatId,
-        senderId: cleanSenderId,
-        receiverId: cleanReceiverId,
-        text: messageText,
-        createdAt: DateTime.now().toUtc(),
-      );
-
-      transaction.set(messageDocument, message.toMap());
+      transaction.set(messageDocument, {
+        ...message.toMap(),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
     });
   }
 
