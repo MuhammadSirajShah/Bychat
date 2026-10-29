@@ -1,13 +1,13 @@
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:bychat/features/contacts/models/bychat_contact_model.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 
 class ContactService {
-  ContactService({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+  ContactService({FirebaseFunctions? functions})
+      : _functions = functions ?? FirebaseFunctions.instance;
 
-  final FirebaseFirestore _firestore;
+  final FirebaseFunctions _functions;
 
   Future<List<ByChatContactModel>> loadContacts({
     required String currentUserUid,
@@ -27,62 +27,100 @@ class ContactService {
       },
     );
 
-    final registeredUsersSnapshot =
-    await _firestore.collection('users').get();
-
-    final registeredUsers = <String, Map<String, dynamic>>{};
-
-    for (final document in registeredUsersSnapshot.docs) {
-      if (document.id == currentUserUid) continue;
-
-      final data = document.data();
-      final phoneNumber = _normalizePhoneNumber(
-        data['phoneNumber'] as String? ?? '',
-      );
-
-      if (phoneNumber.isNotEmpty) {
-        registeredUsers[phoneNumber] = {
-          ...data,
-          'uid': document.id,
-        };
-      }
-    }
-
-    final results = <ByChatContactModel>[];
-    final seenPhones = <String>{};
+    final contactEntries = <Map<String, String>>[];
+    final allNormalizedPhones = <String>{};
 
     for (final contact in phoneContacts) {
       final contactName = contact.displayName?.trim() ?? '';
-      if (contact.phones.isEmpty) continue;
 
       for (final phone in contact.phones) {
         final originalPhone = phone.number.trim();
         final normalizedPhone = _normalizePhoneNumber(originalPhone);
 
-        if (normalizedPhone.isEmpty || !seenPhones.add(normalizedPhone)) {
+        if (normalizedPhone.isEmpty ||
+            !allNormalizedPhones.add(normalizedPhone)) {
           continue;
         }
 
-        final registeredUser = registeredUsers[normalizedPhone];
-
-        results.add(
-          ByChatContactModel(
-            uid: registeredUser?['uid'] as String? ?? '',
-            name: contactName.isEmpty ? originalPhone : contactName,
-            phoneNumber: originalPhone,
-            username: registeredUser?['username'] as String? ?? '',
-            photoUrl: registeredUser?['photoUrl'] as String?,
-            isRegistered: registeredUser != null,
-          ),
-        );
+        contactEntries.add({
+          'name': contactName.isEmpty ? originalPhone : contactName,
+          'phoneNumber': originalPhone,
+          'normalizedPhone': normalizedPhone,
+        });
       }
+    }
+
+    final registeredUsers = <String, Map<String, dynamic>>{};
+
+    final callable = _functions.httpsCallable('findByChatContacts');
+
+    // The Cloud Function accepts a maximum of 200 numbers per request.
+    for (var start = 0;
+    start < contactEntries.length;
+    start += 200) {
+      final end = (start + 200 < contactEntries.length)
+          ? start + 200
+          : contactEntries.length;
+
+      final batch = contactEntries.sublist(start, end);
+      final phoneNumbers = batch
+          .map((entry) => entry['normalizedPhone']!)
+          .toList();
+
+      final response = await callable.call<Map<String, dynamic>>({
+        'phoneNumbers': phoneNumbers,
+      });
+
+      final data = response.data;
+      final matches = data['contacts'];
+
+      if (matches is! List) continue;
+
+      for (final match in matches) {
+        if (match is! Map) continue;
+
+        final user = Map<String, dynamic>.from(match);
+        final normalizedPhone = _normalizePhoneNumber(
+          user['phoneNumber'] as String? ?? '',
+        );
+        final uid = user['uid'] as String? ?? '';
+
+        if (normalizedPhone.isEmpty ||
+            uid.isEmpty ||
+            uid == currentUserUid) {
+          continue;
+        }
+
+        registeredUsers[normalizedPhone] = user;
+      }
+    }
+
+    final results = <ByChatContactModel>[];
+
+    for (final entry in contactEntries) {
+      final normalizedPhone = entry['normalizedPhone']!;
+      final registeredUser = registeredUsers[normalizedPhone];
+
+      results.add(
+        ByChatContactModel(
+          uid: registeredUser?['uid'] as String? ?? '',
+          name: entry['name']!,
+          phoneNumber: entry['phoneNumber']!,
+          username: registeredUser?['username'] as String? ?? '',
+          photoUrl: registeredUser?['photoUrl'] as String?,
+          isRegistered: registeredUser != null,
+        ),
+      );
     }
 
     results.sort((a, b) {
       if (a.isRegistered != b.isRegistered) {
         return a.isRegistered ? -1 : 1;
       }
-      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+
+      return a.name.toLowerCase().compareTo(
+        b.name.toLowerCase(),
+      );
     });
 
     return results;
@@ -95,12 +133,12 @@ class ContactService {
       normalized = normalized.substring(1);
     }
 
-    // Convert Pakistan local numbers to the +92 country-code format.
     if (normalized.startsWith('0092')) {
       normalized = normalized.substring(2);
     } else if (normalized.startsWith('92')) {
-      // Already contains Pakistan's country code.
-    } else if (normalized.startsWith('0') && normalized.length == 11) {
+      // Already includes Pakistan's country code.
+    } else if (normalized.startsWith('0') &&
+        normalized.length == 11) {
       normalized = '92${normalized.substring(1)}';
     }
 
