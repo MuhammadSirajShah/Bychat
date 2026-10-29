@@ -1,14 +1,8 @@
 
 import 'package:bychat/features/contacts/models/bychat_contact_model.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 
 class ContactService {
-  ContactService({FirebaseFunctions? functions})
-      : _functions = functions ?? FirebaseFunctions.instance;
-
-  final FirebaseFunctions _functions;
-
   Future<List<ByChatContactModel>> loadContacts({
     required String currentUserUid,
   }) async {
@@ -27,8 +21,8 @@ class ContactService {
       },
     );
 
-    final contactEntries = <Map<String, String>>[];
-    final allNormalizedPhones = <String>{};
+    final results = <ByChatContactModel>[];
+    final seenNumbers = <String>{};
 
     for (final contact in phoneContacts) {
       final contactName = contact.displayName?.trim() ?? '';
@@ -38,90 +32,28 @@ class ContactService {
         final normalizedPhone = _normalizePhoneNumber(originalPhone);
 
         if (normalizedPhone.isEmpty ||
-            !allNormalizedPhones.add(normalizedPhone)) {
+            !seenNumbers.add(normalizedPhone)) {
           continue;
         }
 
-        contactEntries.add({
-          'name': contactName.isEmpty ? originalPhone : contactName,
-          'phoneNumber': originalPhone,
-          'normalizedPhone': normalizedPhone,
-        });
-      }
-    }
-
-    final registeredUsers = <String, Map<String, dynamic>>{};
-
-    final callable = _functions.httpsCallable('findByChatContacts');
-
-    // The Cloud Function accepts a maximum of 200 numbers per request.
-    for (var start = 0;
-    start < contactEntries.length;
-    start += 200) {
-      final end = (start + 200 < contactEntries.length)
-          ? start + 200
-          : contactEntries.length;
-
-      final batch = contactEntries.sublist(start, end);
-      final phoneNumbers = batch
-          .map((entry) => entry['normalizedPhone']!)
-          .toList();
-
-      final response = await callable.call<Map<String, dynamic>>({
-        'phoneNumbers': phoneNumbers,
-      });
-
-      final data = response.data;
-      final matches = data['contacts'];
-
-      if (matches is! List) continue;
-
-      for (final match in matches) {
-        if (match is! Map) continue;
-
-        final user = Map<String, dynamic>.from(match);
-        final normalizedPhone = _normalizePhoneNumber(
-          user['phoneNumber'] as String? ?? '',
+        results.add(
+          ByChatContactModel(
+            uid: '',
+            name: contactName.isEmpty ? originalPhone : contactName,
+            phoneNumber: originalPhone,
+            username: '',
+            photoUrl: null,
+            isRegistered: false,
+          ),
         );
-        final uid = user['uid'] as String? ?? '';
-
-        if (normalizedPhone.isEmpty ||
-            uid.isEmpty ||
-            uid == currentUserUid) {
-          continue;
-        }
-
-        registeredUsers[normalizedPhone] = user;
       }
     }
 
-    final results = <ByChatContactModel>[];
-
-    for (final entry in contactEntries) {
-      final normalizedPhone = entry['normalizedPhone']!;
-      final registeredUser = registeredUsers[normalizedPhone];
-
-      results.add(
-        ByChatContactModel(
-          uid: registeredUser?['uid'] as String? ?? '',
-          name: entry['name']!,
-          phoneNumber: entry['phoneNumber']!,
-          username: registeredUser?['username'] as String? ?? '',
-          photoUrl: registeredUser?['photoUrl'] as String?,
-          isRegistered: registeredUser != null,
-        ),
-      );
-    }
-
-    results.sort((a, b) {
-      if (a.isRegistered != b.isRegistered) {
-        return a.isRegistered ? -1 : 1;
-      }
-
-      return a.name.toLowerCase().compareTo(
+    results.sort(
+          (a, b) => a.name.toLowerCase().compareTo(
         b.name.toLowerCase(),
-      );
-    });
+      ),
+    );
 
     return results;
   }
@@ -135,11 +67,13 @@ class ContactService {
 
     if (normalized.startsWith('0092')) {
       normalized = normalized.substring(2);
-    } else if (normalized.startsWith('92')) {
-      // Already includes Pakistan's country code.
     } else if (normalized.startsWith('0') &&
         normalized.length == 11) {
       normalized = '92${normalized.substring(1)}';
+    }
+
+    if (!RegExp(r'^\d{8,15}$').hasMatch(normalized)) {
+      return '';
     }
 
     return normalized;
