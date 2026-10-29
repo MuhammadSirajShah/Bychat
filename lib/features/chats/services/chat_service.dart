@@ -1,6 +1,6 @@
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:bychat/features/chats/models/chat_message_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ChatService {
   ChatService({FirebaseFirestore? firestore})
@@ -17,7 +17,6 @@ class ChatService {
         .collection('messages');
   }
 
-  /// Real-time messages for one conversation.
   Stream<List<ChatMessageModel>> watchMessages(String chatId) {
     return _messagesCollection(chatId)
         .orderBy('createdAt')
@@ -32,7 +31,6 @@ class ChatService {
     });
   }
 
-  /// Real-time conversations for the logged-in user.
   Stream<List<Map<String, dynamic>>> watchConversations(String uid) {
     return _firestore
         .collection('chats')
@@ -46,11 +44,9 @@ class ChatService {
         };
       }).toList();
 
-      // Sort locally so this query does not require an orderBy index.
       conversations.sort((a, b) {
-        final aTime = _dateFromFirestore(a['updatedAt']);
-        final bTime = _dateFromFirestore(b['updatedAt']);
-        return bTime.compareTo(aTime);
+        return _dateFromFirestore(b['updatedAt'])
+            .compareTo(_dateFromFirestore(a['updatedAt']));
       });
 
       return conversations;
@@ -63,53 +59,69 @@ class ChatService {
     required String receiverId,
     required String text,
   }) async {
+    final cleanChatId = chatId.trim();
+    final cleanSenderId = senderId.trim();
+    final cleanReceiverId = receiverId.trim();
     final messageText = text.trim();
 
-    if (chatId.trim().isEmpty) {
-      throw ArgumentError('Chat ID cannot be empty.');
+    if (cleanChatId.isEmpty ||
+        cleanSenderId.isEmpty ||
+        cleanReceiverId.isEmpty ||
+        messageText.isEmpty) {
+      throw ArgumentError('Chat ID, user IDs and message are required.');
     }
 
-    if (senderId.trim().isEmpty || receiverId.trim().isEmpty) {
-      throw ArgumentError('Sender ID and receiver ID are required.');
-    }
-
-    if (senderId == receiverId) {
+    if (cleanSenderId == cleanReceiverId) {
       throw ArgumentError('A user cannot message themselves.');
     }
 
-    if (messageText.isEmpty) {
-      throw ArgumentError('Message cannot be empty.');
+    final expectedChatId = [cleanSenderId, cleanReceiverId]..sort();
+    if (cleanChatId != '${expectedChatId[0]}_${expectedChatId[1]}') {
+      throw ArgumentError('Chat ID does not match the participants.');
     }
 
-    final chatDocument = _firestore.collection('chats').doc(chatId);
-    final messageDocument = _messagesCollection(chatId).doc();
+    final chatDocument = _firestore.collection('chats').doc(cleanChatId);
+    final messageDocument = _messagesCollection(cleanChatId).doc();
 
-    final message = ChatMessageModel(
-      id: messageDocument.id,
-      chatId: chatId,
-      senderId: senderId,
-      receiverId: receiverId,
-      text: messageText,
-      createdAt: DateTime.now(),
-    );
+    await _firestore.runTransaction((transaction) async {
+      final chatSnapshot = await transaction.get(chatDocument);
 
-    final batch = _firestore.batch();
+      if (chatSnapshot.exists) {
+        final data = chatSnapshot.data()!;
+        final participants =
+        List<String>.from(data['participants'] ?? const <String>[]);
 
-    // Conversation metadata makes this chat appear on the Home Screen.
-    batch.set(
-      chatDocument,
-      {
-        'participants': [senderId, receiverId],
-        'lastMessage': messageText,
-        'lastMessageSenderId': senderId,
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+        if (!participants.contains(cleanSenderId) ||
+            !participants.contains(cleanReceiverId) ||
+            participants.length != 2) {
+          throw StateError('Chat participants do not match.');
+        }
 
-    batch.set(messageDocument, message.toMap());
+        transaction.update(chatDocument, {
+          'lastMessage': messageText,
+          'lastMessageSenderId': cleanSenderId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        transaction.set(chatDocument, {
+          'participants': [cleanSenderId, cleanReceiverId]..sort(),
+          'lastMessage': messageText,
+          'lastMessageSenderId': cleanSenderId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
 
-    await batch.commit();
+      final message = ChatMessageModel(
+        id: messageDocument.id,
+        chatId: cleanChatId,
+        senderId: cleanSenderId,
+        receiverId: cleanReceiverId,
+        text: messageText,
+        createdAt: DateTime.now().toUtc(),
+      );
+
+      transaction.set(messageDocument, message.toMap());
+    });
   }
 
   Future<void> markMessageAsRead({
@@ -126,16 +138,11 @@ class ChatService {
   }
 
   static DateTime _dateFromFirestore(dynamic value) {
-    if (value is Timestamp) {
-      return value.toDate();
-    }
-
-    if (value is DateTime) {
-      return value;
-    }
-
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
     if (value is String) {
-      return DateTime.tryParse(value) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return DateTime.tryParse(value) ??
+          DateTime.fromMillisecondsSinceEpoch(0);
     }
 
     return DateTime.fromMillisecondsSinceEpoch(0);
