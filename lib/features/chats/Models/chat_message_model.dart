@@ -1,4 +1,6 @@
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class ChatMessageModel {
   final String id;
   final String chatId;
@@ -26,7 +28,7 @@ class ChatMessageModel {
       'senderId': senderId,
       'receiverId': receiverId,
       'text': text,
-      'createdAt': createdAt.toUtc().toIso8601String(),
+      'createdAt': Timestamp.fromDate(createdAt.toUtc()),
       'type': type,
       'isRead': isRead,
     };
@@ -49,13 +51,16 @@ class ChatMessageModel {
   }
 
   static DateTime _parseDate(dynamic value) {
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+
     if (value is DateTime) {
       return value;
     }
 
     if (value is String) {
-      return DateTime.tryParse(value)?.toLocal() ??
-          DateTime.now();
+      return DateTime.tryParse(value)?.toLocal() ?? DateTime.now();
     }
 
     return DateTime.now();
