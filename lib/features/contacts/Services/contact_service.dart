@@ -39,7 +39,9 @@ class ContactService {
         results.add(
           ByChatContactModel(
             uid: '',
-            name: contactName.isEmpty ? originalPhone : contactName,
+            name: contactName.isEmpty
+                ? originalPhone
+                : contactName,
             phoneNumber: originalPhone,
             username: '',
             photoUrl: null,
