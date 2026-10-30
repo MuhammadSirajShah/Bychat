@@ -1,6 +1,5 @@
 ﻿
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -12,7 +11,7 @@ class ProfileSetupService {
   }) async {
     final phoneNumber = user.phoneNumber ?? '';
 
-    // Save the user's private profile first.
+    // Save the user's private profile in Firestore.
     await FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)
@@ -22,11 +21,7 @@ class ProfileSetupService {
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
-    // Maintain the contact lookup through the trusted backend.
-    await FirebaseFunctions.instance
-        .httpsCallable('updateContactLookup')
-        .call();
-
+    // Save profile information locally.
     final prefs = await SharedPreferences.getInstance();
 
     await prefs.setString('bychat_profile_name', name);
