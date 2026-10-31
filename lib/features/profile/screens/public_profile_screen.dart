@@ -1,11 +1,13 @@
 
+import 'package:bychat/features/chats/providers/chat_providers.dart';
 import 'package:bychat/features/chats/screens/chat_screen.dart';
 import 'package:bychat/features/chats/utils/chat_id_helper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class PublicProfileScreen extends StatelessWidget {
+class PublicProfileScreen extends ConsumerWidget {
   const PublicProfileScreen({
     super.key,
     required this.uid,
@@ -17,6 +19,7 @@ class PublicProfileScreen extends StatelessWidget {
 
   Future<void> _openChat(
       BuildContext context,
+      WidgetRef ref,
       String name,
       ) async {
     final currentUser = FirebaseAuth.instance.currentUser;
@@ -37,20 +40,38 @@ class PublicProfileScreen extends StatelessWidget {
 
     final chatId = createChatId(currentUser.uid, uid);
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ChatScreen(
-          contactName: name,
-          receiverUid: uid,
-          chatId: chatId,
+    try {
+      await ref.read(chatMessageActionsProvider).ensureChat(
+        chatId: chatId,
+        currentUserId: currentUser.uid,
+        receiverId: uid,
+      );
+
+      if (!context.mounted) return;
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            contactName: name,
+            receiverUid: uid,
+            chatId: chatId,
+          ),
         ),
-      ),
-    );
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Chat open nahi ho saki: $error'),
+        ),
+      );
+    }
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -65,7 +86,8 @@ class PublicProfileScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (snapshot.hasError || !snapshot.hasData ||
+          if (snapshot.hasError ||
+              !snapshot.hasData ||
               !snapshot.data!.exists) {
             return const Center(
               child: Text('Could not load this profile.'),
@@ -73,14 +95,15 @@ class PublicProfileScreen extends StatelessWidget {
           }
 
           final data = snapshot.data!.data() ?? {};
-          final name = (data['name'] as String?)?.trim().isNotEmpty == true
-              ? (data['name'] as String).trim()
+
+          final storedName = data['name'] as String?;
+          final name = storedName != null && storedName.trim().isNotEmpty
+              ? storedName.trim()
               : username;
 
+          final links = data['links'];
           final about = (data['about'] as String?) ??
-              (data['links'] is Map
-                  ? ((data['links'] as Map)['about'] as String? ?? '')
-                  : '');
+              (links is Map ? (links['about'] as String? ?? '') : '');
 
           final photoUrl = data['photoUrl'] as String?;
 
@@ -91,7 +114,8 @@ class PublicProfileScreen extends StatelessWidget {
               Center(
                 child: CircleAvatar(
                   radius: 55,
-                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                  backgroundColor:
+                  theme.colorScheme.surfaceContainerHighest,
                   backgroundImage:
                   photoUrl != null && photoUrl.trim().isNotEmpty
                       ? NetworkImage(photoUrl)
@@ -133,7 +157,7 @@ class PublicProfileScreen extends StatelessWidget {
               ],
               const SizedBox(height: 28),
               FilledButton.icon(
-                onPressed: () => _openChat(context, name),
+                onPressed: () => _openChat(context, ref, name),
                 icon: const Icon(Icons.chat_bubble_outline),
                 label: const Text('Message'),
                 style: FilledButton.styleFrom(

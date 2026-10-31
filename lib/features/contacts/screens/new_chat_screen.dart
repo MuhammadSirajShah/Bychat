@@ -5,7 +5,6 @@ import 'package:bychat/features/contacts/models/bychat_contact_model.dart';
 import 'package:bychat/features/contacts/providers/contact_providers.dart';
 import 'package:bychat/features/profile/screens/public_profile_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -159,7 +158,7 @@ class _NewChatScreenState extends ConsumerState<NewChatScreen> {
     final hasSearch = _query.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: _background,
+      //backgroundColor: _background,
       appBar: AppBar(
         backgroundColor: _background,
         foregroundColor: Colors.white,

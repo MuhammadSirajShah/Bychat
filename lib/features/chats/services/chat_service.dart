@@ -17,6 +17,63 @@ class ChatService {
         .collection('messages');
   }
 
+  // Create a chat if it does not exist, otherwise verify its participants.
+  Future<void> ensureChat({
+    required String chatId,
+    required String currentUserId,
+    required String receiverId,
+  }) async {
+    final cleanChatId = chatId.trim();
+    final cleanCurrentUserId = currentUserId.trim();
+    final cleanReceiverId = receiverId.trim();
+
+    if (cleanChatId.isEmpty ||
+        cleanCurrentUserId.isEmpty ||
+        cleanReceiverId.isEmpty) {
+      throw ArgumentError('Chat details are required.');
+    }
+
+    if (cleanCurrentUserId == cleanReceiverId) {
+      throw ArgumentError('You cannot start a chat with yourself.');
+    }
+
+    final sortedUids = [cleanCurrentUserId, cleanReceiverId]..sort();
+    final expectedChatId = '${sortedUids[0]}_${sortedUids[1]}';
+
+    if (cleanChatId != expectedChatId) {
+      throw ArgumentError('Chat ID does not match the participants.');
+    }
+
+    final chatDocument =
+    _firestore.collection('chats').doc(cleanChatId);
+
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(chatDocument);
+
+      if (snapshot.exists) {
+        final data = snapshot.data()!;
+        final participants = List<String>.from(
+          data['participants'] ?? const <String>[],
+        );
+
+        if (participants.length != 2 ||
+            !participants.contains(cleanCurrentUserId) ||
+            !participants.contains(cleanReceiverId)) {
+          throw StateError('Chat participants do not match.');
+        }
+
+        return;
+      }
+
+      transaction.set(chatDocument, {
+        'participants': sortedUids,
+        'lastMessage': '',
+        'lastMessageSenderId': cleanCurrentUserId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
   Stream<List<ChatMessageModel>> watchMessages(String chatId) {
     return _messagesCollection(chatId)
         .orderBy('createdAt')
@@ -76,6 +133,7 @@ class ChatService {
     }
 
     final sortedUids = [cleanSenderId, cleanReceiverId]..sort();
+
     if (cleanChatId != '${sortedUids[0]}_${sortedUids[1]}') {
       throw ArgumentError('Chat ID does not match the participants.');
     }
@@ -95,30 +153,26 @@ class ChatService {
     await _firestore.runTransaction((transaction) async {
       final chatSnapshot = await transaction.get(chatDocument);
 
-      if (chatSnapshot.exists) {
-        final data = chatSnapshot.data()!;
-        final participants =
-        List<String>.from(data['participants'] ?? const <String>[]);
-
-        if (participants.length != 2 ||
-            !participants.contains(cleanSenderId) ||
-            !participants.contains(cleanReceiverId)) {
-          throw StateError('Chat participants do not match.');
-        }
-
-        transaction.update(chatDocument, {
-          'lastMessage': messageText,
-          'lastMessageSenderId': cleanSenderId,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      } else {
-        transaction.set(chatDocument, {
-          'participants': sortedUids,
-          'lastMessage': messageText,
-          'lastMessageSenderId': cleanSenderId,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+      if (!chatSnapshot.exists) {
+        throw StateError('Chat does not exist. Please reopen the chat.');
       }
+
+      final data = chatSnapshot.data()!;
+      final participants = List<String>.from(
+        data['participants'] ?? const <String>[],
+      );
+
+      if (participants.length != 2 ||
+          !participants.contains(cleanSenderId) ||
+          !participants.contains(cleanReceiverId)) {
+        throw StateError('Chat participants do not match.');
+      }
+
+      transaction.update(chatDocument, {
+        'lastMessage': messageText,
+        'lastMessageSenderId': cleanSenderId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
       transaction.set(messageDocument, {
         ...message.toMap(),

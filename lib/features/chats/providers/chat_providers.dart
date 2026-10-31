@@ -30,6 +30,18 @@ class ChatMessageActions {
 
   final ChatService _chatService;
 
+  Future<void> ensureChat({
+    required String chatId,
+    required String currentUserId,
+    required String receiverId,
+  }) {
+    return _chatService.ensureChat(
+      chatId: chatId,
+      currentUserId: currentUserId,
+      receiverId: receiverId,
+    );
+  }
+
   Future<void> sendMessage({
     required String chatId,
     required String senderId,
