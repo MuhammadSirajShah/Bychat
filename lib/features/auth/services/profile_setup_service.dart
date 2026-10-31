@@ -9,17 +9,51 @@ class ProfileSetupService {
     required String name,
     String? profileImagePath,
   }) async {
-    final phoneNumber = user.phoneNumber ?? '';
+    final phoneNumber = user.phoneNumber?.trim() ?? '';
 
-    // Save the user's private profile in Firestore.
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .set({
-      'name': name,
-      'phoneNumber': phoneNumber,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    if (phoneNumber.isEmpty) {
+      throw Exception(
+        'Verified phone number is missing. Please verify your phone number.',
+      );
+    }
+
+    // Firebase Phone Auth numbers should be in E.164 format.
+    if (!RegExp(r'^\+[1-9]\d{7,14}$').hasMatch(phoneNumber)) {
+      throw Exception(
+        'Phone number format is invalid. Please verify your phone number again.',
+      );
+    }
+
+    final firestore = FirebaseFirestore.instance;
+
+    final userRef = firestore.collection('users').doc(user.uid);
+
+    final lookupRef = firestore
+        .collection('phoneLookups')
+        .doc(phoneNumber);
+
+    // Save private profile and verified phone lookup together.
+    final batch = firestore.batch();
+
+    batch.set(
+      userRef,
+      {
+        'name': name,
+        'phoneNumber': phoneNumber,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+
+    batch.set(
+      lookupRef,
+      {
+        'uid': user.uid,
+        'phoneNumber': phoneNumber,
+      },
+    );
+
+    await batch.commit();
 
     // Save profile information locally.
     final prefs = await SharedPreferences.getInstance();
