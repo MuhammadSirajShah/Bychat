@@ -1,11 +1,19 @@
-﻿
+﻿import 'package:bychat/features/auth/providers/auth_providers.dart';
+import 'package:bychat/features/auth/services/profile_setup_service.dart';
+import 'package:bychat/features/home/screens/home_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:bychat/features/auth/providers/auth_providers.dart';
+
+import 'permission_screen.dart';
 import 'profile_info_screen.dart';
 import 'welcome_screen.dart';
-import 'package:bychat/features/home/screens/home_screen.dart';
-import 'permission_screen.dart';
+
+/// Registers an existing user's verified phone number.
+final existingPhoneLookupProvider =
+FutureProvider.family<void, User>((ref, user) async {
+  await ProfileSetupService().ensurePhoneLookup(user);
+});
 
 class AuthGate extends ConsumerWidget {
   const AuthGate({super.key});
@@ -37,7 +45,7 @@ class AuthGate extends ConsumerWidget {
           ),
           data: (hasCloudProfile) {
             if (hasCloudProfile) {
-              return const HomeScreen();
+              return _homeScreenWithPhoneLookup(ref, user);
             }
 
             final setupAsync = ref.watch(setupStatusProvider);
@@ -45,7 +53,8 @@ class AuthGate extends ConsumerWidget {
             return setupAsync.when(
               loading: () => _loadingScreen(),
               error: (error, stackTrace) => _errorScreen(
-                message: 'Unable to load your setup status. Please try again.',
+                message:
+                'Unable to load your setup status. Please try again.',
                 onRetry: () => ref.invalidate(setupStatusProvider),
               ),
               data: (setup) {
@@ -55,7 +64,7 @@ class AuthGate extends ConsumerWidget {
                     setup['profileCompleted'] ?? false;
 
                 if (profileCompleted) {
-                  return const HomeScreen();
+                  return _homeScreenWithPhoneLookup(ref, user);
                 }
 
                 if (!permissionsCompleted) {
@@ -68,6 +77,20 @@ class AuthGate extends ConsumerWidget {
           },
         );
       },
+    );
+  }
+
+  Widget _homeScreenWithPhoneLookup(WidgetRef ref, User user) {
+    final lookupAsync = ref.watch(existingPhoneLookupProvider(user));
+
+    return lookupAsync.when(
+      loading: () => _loadingScreen(),
+      error: (error, stackTrace) => _errorScreen(
+        message:
+        'Unable to register your phone number. Please check your internet connection and try again.',
+        onRetry: () => ref.invalidate(existingPhoneLookupProvider(user)),
+      ),
+      data: (_) => const HomeScreen(),
     );
   }
 
@@ -117,5 +140,3 @@ class AuthGate extends ConsumerWidget {
     );
   }
 }
-
-
